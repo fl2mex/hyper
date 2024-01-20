@@ -18,6 +18,9 @@ namespace hyper
 			log("Vulkan: DLDI & Debug Messenger Created");
 		}
 
+		m_PhysicalDevice = ChoosePhysicalDevice(m_Instance);
+		log("Vulkan: Using Physical Device: \n\t" << m_PhysicalDevice.getProperties().deviceName);
+
 		Run();
 	}
 
@@ -142,6 +145,41 @@ namespace hyper
 			log("Vulkan: Couldn't Create Debug Messenger!");
 			throw std::runtime_error("Vulkan: Couldn't Create Debug Messenger!");
 		}
+	}
+
+	vk::PhysicalDevice Application::ChoosePhysicalDevice(const vk::Instance& instance) const
+	{
+		std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+
+		if (physicalDevices.size() == 0)
+		{
+			log("Vulkan: Couldn't find any GPUs with Vulkan support!");
+			throw std::runtime_error("Vulkan: Couldn't find any GPUs with Vulkan support!");
+		}
+
+		log("Vulkan: Available Physical Devices:");
+		for (const vk::PhysicalDevice& physicalDevice : physicalDevices) { log("\t" << physicalDevice.getProperties().deviceName); }
+
+		int gpuIndex = 0; // Not good implementation if there are multiple GPUs of different speeds, just picks the last one in the list
+		for (int i = 0; i < (int)physicalDevices.size(); i++)
+		{
+			vk::PhysicalDeviceProperties properties = physicalDevices[i].getProperties();
+			if (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu)
+			{
+				gpuIndex = i;
+				break;
+			}
+		}
+		for (int i = 0; i < (int)physicalDevices.size(); i++) // Check twice, if a discrete & integrated GPU are found, pick discrete by running loop again
+		{
+			vk::PhysicalDeviceProperties properties = physicalDevices[i].getProperties();
+			if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+			{
+				gpuIndex = i;
+				break;
+			}
+		}
+		return physicalDevices[gpuIndex];
 	}
 
 	void Application::Run()

@@ -17,6 +17,8 @@ namespace hyper
 		vk::DispatchLoaderDynamic CreateDLDI(const vk::Instance& instance) const;
 		vk::DebugUtilsMessengerEXT CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const;
 
+		vk::PhysicalDevice ChoosePhysicalDevice(const vk::Instance& instance) const;
+
 		void Run();
 
 	private:
@@ -28,5 +30,7 @@ namespace hyper
 
 		vk::DebugUtilsMessengerEXT m_DebugMessenger{ nullptr };
 		vk::DispatchLoaderDynamic m_DLDI;
+
+		vk::PhysicalDevice m_PhysicalDevice{ nullptr };
 	};
 }

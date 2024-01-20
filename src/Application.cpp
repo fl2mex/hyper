@@ -11,11 +11,20 @@ namespace hyper
 		m_Instance = CreateInstance(m_Spec);
 		log("Vulkan: Instance Created");
 		
+		if (m_Spec.Debug)
+		{
+			m_DLDI = CreateDLDI(m_Instance);
+			m_DebugMessenger = CreateDebugMessenger(m_Instance, m_DLDI);
+			log("Vulkan: DLDI & Debug Messenger Created");
+		}
+
 		Run();
 	}
 
 	Application::~Application()
 	{
+		if (m_Spec.Debug) { m_Instance.destroyDebugUtilsMessengerEXT(m_DebugMessenger, nullptr, m_DLDI); }
+
 		m_Instance.destroy();
 
 		glfwDestroyWindow(m_Window);
@@ -95,6 +104,43 @@ namespace hyper
 		{
 			log("Vulkan: Couldn't Create Instance!");
 			throw std::runtime_error("Vulkan: Couldn't Create Instance!");
+		}
+	}
+
+	vk::DispatchLoaderDynamic Application::CreateDLDI(const vk::Instance& instance) const
+	{
+		try
+		{
+			return vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+		}
+		catch (vk::SystemError err)
+		{
+			log("Vulkan: Couldn't Create DLDI!");
+			throw std::runtime_error("Vulkan: Couldn't Create DLDI!");
+		}
+	}
+
+	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)// Not a fan of the C-style func
+	{																															// in vulkan-hpp :(
+		std::cerr << "Validation Layer: " << pCallbackData->pMessage << std::endl;
+		return false;
+	}
+	vk::DebugUtilsMessengerEXT Application::CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const
+	{
+		vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerInfo = vk::DebugUtilsMessengerCreateInfoEXT(vk::DebugUtilsMessengerCreateFlagsEXT(),
+			vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError, // eVerbose is annoying, add back if needed
+			vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+			DebugCallback, nullptr);
+
+		try
+		{
+			return instance.createDebugUtilsMessengerEXT(debugUtilsMessengerInfo, nullptr, dldi);
+		}
+		catch (vk::SystemError err)
+		{
+			log("Vulkan: Couldn't Create Debug Messenger!");
+			throw std::runtime_error("Vulkan: Couldn't Create Debug Messenger!");
 		}
 	}
 

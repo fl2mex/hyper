@@ -17,7 +17,13 @@ namespace hyper
 		vk::DispatchLoaderDynamic CreateDLDI(const vk::Instance& instance) const;
 		vk::DebugUtilsMessengerEXT CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const;
 
+		vk::SurfaceKHR CreateSurface(const vk::Instance& instance, GLFWwindow* window) const;
+
 		vk::PhysicalDevice ChoosePhysicalDevice(const vk::Instance& instance) const;
+
+		std::vector<uint32_t> FindQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const;
+
+		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice& physicalDevice) const;
 
 		void Run();
 
@@ -31,6 +37,14 @@ namespace hyper
 		vk::DebugUtilsMessengerEXT m_DebugMessenger{ nullptr };
 		vk::DispatchLoaderDynamic m_DLDI;
 
+		vk::SurfaceKHR m_Surface{ nullptr };
+
 		vk::PhysicalDevice m_PhysicalDevice{ nullptr };
+
+		std::vector<uint32_t> m_QueueFamilyIndices; // Graphics, Present - would a struct be nicer?
+
+		vk::Device m_LogicalDevice{ nullptr };
+
+		vk::Queue m_GraphicsQueue{ nullptr };
 	};
 }

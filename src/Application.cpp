@@ -18,15 +18,27 @@ namespace hyper
 			log("Vulkan: DLDI & Debug Messenger Created");
 		}
 
+		m_Surface = CreateSurface(m_Instance, m_Window);
+		log("GLFW: Surface Created");
+
 		m_PhysicalDevice = ChoosePhysicalDevice(m_Instance);
 		log("Vulkan: Using Physical Device: \n\t" << m_PhysicalDevice.getProperties().deviceName);
+
+		m_QueueFamilyIndices = FindQueueFamilies(m_PhysicalDevice, m_Surface);
+		log("Vulkan: Chose Queue Families: \n\t" << "Graphics: " << m_QueueFamilyIndices[0] << "\n\tPresent: " << m_QueueFamilyIndices[1]);
+
+		m_LogicalDevice = CreateLogicalDevice(m_QueueFamilyIndices, m_Surface, m_PhysicalDevice);
 
 		Run();
 	}
 
 	Application::~Application()
 	{
+		m_LogicalDevice.destroy();
+
 		if (m_Spec.Debug) { m_Instance.destroyDebugUtilsMessengerEXT(m_DebugMessenger, nullptr, m_DLDI); }
+
+		m_Instance.destroySurfaceKHR(m_Surface);
 
 		m_Instance.destroy();
 
@@ -147,6 +159,17 @@ namespace hyper
 		}
 	}
 
+	vk::SurfaceKHR Application::CreateSurface(const vk::Instance& instance, GLFWwindow* window) const
+	{
+		VkSurfaceKHR surface; // Must use C-style convention before casting via return
+		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+		{
+			log("GLFW: Couldn't create surface!");
+			throw std::runtime_error("GLFW: Couldn't create surface!");
+		}
+		return surface; // Could use GLFWPP or any other wrapper to probably fix this but nahhhhhhhhhhh
+	}
+
 	vk::PhysicalDevice Application::ChoosePhysicalDevice(const vk::Instance& instance) const
 	{
 		std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
@@ -180,6 +203,57 @@ namespace hyper
 			}
 		}
 		return physicalDevices[gpuIndex];
+	}
+
+	std::vector<uint32_t> Application::FindQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const
+	{
+		std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
+		uint32_t graphicsFamily = -1, presentFamily = -1, queueFamilyIndex = 0;
+		for (const vk::QueueFamilyProperties& queueFamily : queueFamilies) {
+			if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+			{
+				graphicsFamily = queueFamilyIndex;
+			}
+
+			if (physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, surface))
+			{
+				presentFamily = queueFamilyIndex;
+			}
+
+			if (graphicsFamily != -1 && presentFamily != -1)
+			{
+				break;
+			}
+
+			queueFamilyIndex++;
+		}
+		return std::vector<uint32_t>{ graphicsFamily, presentFamily };
+	}
+
+	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice& physicalDevice) const
+	{
+		std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+		float queuePriority = 0.0f;
+		for (uint32_t& queueFamilyIndex : queueFamilyIndices)
+		{
+			queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
+				static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
+		}
+
+		const std::vector<const char*> logicalDeviceExtensions = { "VK_KHR_swapchain" };
+
+		vk::DeviceCreateInfo logicalDeviceInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(),
+			0u, nullptr, static_cast<uint32_t>(logicalDeviceExtensions.size()), logicalDeviceExtensions.data());
+
+		try
+		{
+			return physicalDevice.createDevice(logicalDeviceInfo);
+		}
+		catch (vk::SystemError err)
+		{
+			log("Vulkan: Couldn't Create Logical Device!");
+			throw std::runtime_error("Vulkan: Couldn't Create Logical Device!");
+		}
 	}
 
 	void Application::Run()

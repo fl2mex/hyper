@@ -215,7 +215,7 @@ namespace hyper
 				graphicsFamily = queueFamilyIndex;
 			}
 
-			if (physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, surface))
+			if (physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, surface) && queueFamilyIndex != graphicsFamily)
 			{
 				presentFamily = queueFamilyIndex;
 			}

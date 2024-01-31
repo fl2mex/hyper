@@ -1,6 +1,7 @@
 #pragma once
 #include "Include.h"
 #include "Spec.h"
+
 namespace hyper
 {
 	class Application
@@ -25,6 +26,11 @@ namespace hyper
 
 		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice& physicalDevice) const;
 
+		vk::Queue GetQueue(vk::Device logicalDevice, uint32_t queueIndex) const;
+
+		vk::SwapchainKHR CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface,
+			Spec spec, vk::Device device);
+
 		void Run();
 
 	private:
@@ -46,5 +52,11 @@ namespace hyper
 		vk::Device m_LogicalDevice{ nullptr };
 
 		vk::Queue m_GraphicsQueue{ nullptr };
+		vk::Queue m_PresentQueue{ nullptr };
+
+		vk::SwapchainKHR m_Swapchain{ nullptr };
+		std::vector<vk::Image> m_SwapchainImages{ nullptr };
+		std::vector<vk::ImageView> m_SwapchainImageViews;
+
 	};
 }

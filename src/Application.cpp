@@ -2,6 +2,18 @@
 
 namespace hyper
 {
+	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)// Not a fan of C-style
+	{																															// functions in vulkan-hpp :(
+		std::cerr << "Validation Layer: " << pCallbackData->pMessage << std::endl;
+		return false;
+	}
+
+	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)	// GLFW-specific key callback function
+	{
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) { glfwSetWindowShouldClose(window, GLFW_TRUE); } // Just closing for now :)
+	}
+
 	Application::Application(Spec spec)
 	{
 		m_Spec = spec; // Copy
@@ -33,24 +45,19 @@ namespace hyper
 		m_GraphicsQueue = GetQueue(m_LogicalDevice, m_QueueFamilyIndices[0]);
 		m_PresentQueue = GetQueue(m_LogicalDevice, m_QueueFamilyIndices[1]);
 
-		m_Swapchain = CreateSwapchain(m_QueueFamilyIndices, m_PhysicalDevice, m_Surface, m_Spec, m_LogicalDevice);
+		m_SwapchainFormat = ChooseSwapchainFormat(m_PhysicalDevice, m_Surface);
+		m_SwapchainExtent = ChooseSwapchainExtent(m_PhysicalDevice, m_Surface, m_Spec);
+
+		m_Swapchain = CreateSwapchain(m_QueueFamilyIndices, m_SwapchainFormat, m_SwapchainExtent, m_PhysicalDevice, m_Surface, m_Spec, m_LogicalDevice);
 		m_SwapchainImages = m_LogicalDevice.getSwapchainImagesKHR(m_Swapchain);
-		
-		for (auto image : m_SwapchainImages) {
-			vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image,
-				vk::ImageViewType::e2D, vk::Format::eB8G8R8A8Unorm,
-				vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
-					vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA },
-				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-			m_SwapchainImageViews.push_back(m_LogicalDevice.createImageView(imageViewCreateInfo));
-		}
+		m_SwapchainImageViews = CreateSwapchainImageViews(m_LogicalDevice, m_SwapchainImages, m_SwapchainFormat);
 
 		Run();
 	}
 
 	Application::~Application() // Destroy objects in the opposite order they were created in
 	{
-		for (auto imageView : m_SwapchainImageViews) { m_LogicalDevice.destroyImageView(imageView); }
+		for (const vk::ImageView& imageView : m_SwapchainImageViews) { m_LogicalDevice.destroyImageView(imageView); }
 
 		m_LogicalDevice.destroySwapchainKHR(m_Swapchain);
 
@@ -90,6 +97,7 @@ namespace hyper
 			log("GLFW: Couldn't Create Window!");
 			throw std::runtime_error("GLFW: Couldn't Create Window!");
 		}
+		glfwSetKeyCallback(window, KeyCallback);
 
 		return window;
 	}
@@ -152,15 +160,7 @@ namespace hyper
 			throw std::runtime_error("Vulkan: Couldn't Create DLDI!");
 		}
 	}
-
-	// Debug messengers and validation layers are arcane black magic, so I collapse them
-	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)// Not a fan of C-style
-	{																															// functions in vulkan-hpp :(
-		std::cerr << "Validation Layer: " << pCallbackData->pMessage << std::endl;
-		return false;
-	}
-
+	
 	vk::DebugUtilsMessengerEXT Application::CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const
 	{
 		vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerInfo = vk::DebugUtilsMessengerCreateInfoEXT(vk::DebugUtilsMessengerCreateFlagsEXT(),
@@ -283,37 +283,99 @@ namespace hyper
 
 	vk::Queue Application::GetQueue(vk::Device logicalDevice, uint32_t queueIndex) const
 	{
-		return logicalDevice.getQueue(queueIndex, 0);
+		try
+		{
+			return logicalDevice.getQueue(queueIndex, 0);
+		}
+		catch (vk::SystemError err)
+		{
+			log("Vulkan: Couldn't Get Queue!");
+			throw std::runtime_error("Vulkan: Couldn't Get Queue!");
+		}
 	}
 
-	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface,
-		Spec spec, vk::Device device)
+	vk::Format Application::ChooseSwapchainFormat(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const
 	{
-		uint32_t imageCount = 2;
-		struct SM {
+		std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
+		vk::Format usedFormat = formats[0].format;
+		for (const vk::SurfaceFormatKHR& format : formats)
+		{
+			if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) { usedFormat = format.format; }
+		}
+
+		return usedFormat;
+	}
+
+	vk::Extent2D Application::ChooseSwapchainExtent(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec) const
+	{
+		vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+		vk::Extent2D usedExtent = capabilities.currentExtent;
+		if (capabilities.currentExtent.width = UINT32_MAX) {
+
+			usedExtent = vk::Extent2D
+			{
+				std::min(capabilities.maxImageExtent.width, std::max(capabilities.minImageExtent.width, spec.Width)),
+				std::min(capabilities.maxImageExtent.height, std::max(capabilities.minImageExtent.height, spec.Height))
+			};
+		}
+
+		return usedExtent;
+	}
+
+	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, const vk::Format& format, const vk::Extent2D& extent,
+		const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec, const vk::Device& logicalDevice) const
+	{
+		uint32_t imageCount = 2; // Double buffer
+
+		struct SM
+		{
 			vk::SharingMode sharingMode;
-			uint32_t familyIndicesCount;
-			uint32_t* familyIndicesDataPtr;
+			uint32_t familyIndexCount;
+			uint32_t* familyIndices;
 		} sharingModeUtil{ (queueFamilyIndices[0] != queueFamilyIndices[1]) ?
-							   SM{ vk::SharingMode::eConcurrent, 2u, &queueFamilyIndices[0] } : // REFERENCE TO FIRST POSITION IN MEMORY????
-							   SM{ vk::SharingMode::eExclusive, 0u, {} } };						// APPARENTLY CONTIGUOUS?????? THANKS STACKOVERFLOW
+			SM{ vk::SharingMode::eConcurrent, 2u, &queueFamilyIndices[0] } :	// REFERENCE TO FIRST POSITION IN MEMORY????
+			SM{ vk::SharingMode::eExclusive, 0u, {} } };						// APPARENTLY CONTIGUOUS?????? THANKS STACKOVERFLOW
+		
+		
 
-		// needed for validation warnings
-		auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-		auto formats = physicalDevice.getSurfaceFormatsKHR(surface);
+		std::vector<vk::PresentModeKHR> presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+		vk::PresentModeKHR usedPresentMode = vk::PresentModeKHR::eFifo;
+		for (const vk::PresentModeKHR& presentMode : presentModes)
+		{
+			if (presentMode == vk::PresentModeKHR::eMailbox) { usedPresentMode = presentMode; }
+		}
 
-		auto format = vk::Format::eB8G8R8A8Unorm;
-		auto extent = vk::Extent2D{ spec.Width, spec.Height };
+		vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(), surface, imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
+			extent, 1, vk::ImageUsageFlagBits::eColorAttachment, sharingModeUtil.sharingMode, sharingModeUtil.familyIndexCount,
+			sharingModeUtil.familyIndices, vk::SurfaceTransformFlagBitsKHR::eIdentity, vk::CompositeAlphaFlagBitsKHR::eOpaque, usedPresentMode, true,
+			vk::SwapchainKHR(nullptr));
 
-		vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(), surface, imageCount, format,
-			vk::ColorSpaceKHR::eSrgbNonlinear, extent, 1, vk::ImageUsageFlagBits::eColorAttachment,
-			sharingModeUtil.sharingMode, sharingModeUtil.familyIndicesCount,
-			sharingModeUtil.familyIndicesDataPtr, vk::SurfaceTransformFlagBitsKHR::eIdentity,
-			vk::CompositeAlphaFlagBitsKHR::eOpaque, vk::PresentModeKHR::eFifo, true);
-
-		return device.createSwapchainKHR(swapChainCreateInfo);
+		try
+		{
+			return logicalDevice.createSwapchainKHR(swapChainCreateInfo);
+		}
+		catch (vk::SystemError err)
+		{
+			log("Vulkan: Couldn't Create Swapchain!");
+			throw std::runtime_error("Vulkan: Couldn't Create Swapchain!");
+		}
 	}
 	
+	std::vector<vk::ImageView> Application::CreateSwapchainImageViews(const vk::Device& logicalDevice, std::vector<vk::Image> swapchainImages,
+		const vk::Format& format) const
+	{
+		std::vector<vk::ImageView> imageViews;
+		for (const vk::Image& image : swapchainImages)
+		{
+			vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image,
+				vk::ImageViewType::e2D, format,
+				vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB,vk::ComponentSwizzle::eA },
+				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+			imageViews.push_back(logicalDevice.createImageView(imageViewCreateInfo));
+		}
+
+		return imageViews;
+	}
 
 	void Application::Run()
 	{

@@ -12,8 +12,8 @@ I want to completely understand how the whole vulkan graphics pipeline works, so
 | <ul><li>- [x] Surface Creation         |                                       | <ul><li>- [ ] Descriptor Layout/Pool Creation | <ul><li>- [ ] Asset System       |
 | <ul><li>- [x] Physical Device Picked   |                                       |                                               | <ul><li>- [ ] Multithreading     |
 | <ul><li>- [x] Logical Device Creation  |                                       |                                               | <ul><li>- [ ] Raytracing (maybe) |
-| <ul><li>- [ ] Queue Setup              |
-| <ul><li>- [ ] Swapchain Setup          |
+| <ul><li>- [x] Queue Setup              |
+| <ul><li>- [x] Swapchain Setup          |
 
 # Tools used
 I am using: <br>

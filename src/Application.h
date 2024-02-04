@@ -24,7 +24,8 @@ namespace hyper
 
 		std::vector<uint32_t> FindQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const;
 
-		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice& physicalDevice) const;
+		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice&,
+			const Spec& spec) const;
 
 		vk::Queue GetQueue(vk::Device logicalDevice, uint32_t queueIndex) const;
 

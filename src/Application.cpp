@@ -40,17 +40,22 @@ namespace hyper
 		m_QueueFamilyIndices = FindQueueFamilies(m_PhysicalDevice, m_Surface);
 		log("Vulkan: Chose Queue Families: \n\t" << "Graphics: " << m_QueueFamilyIndices[0] << "\n\tPresent: " << m_QueueFamilyIndices[1]);
 
-		m_LogicalDevice = CreateLogicalDevice(m_QueueFamilyIndices, m_Surface, m_PhysicalDevice);
+		m_LogicalDevice = CreateLogicalDevice(m_QueueFamilyIndices, m_Surface, m_PhysicalDevice, m_Spec);
 
 		m_GraphicsQueue = GetQueue(m_LogicalDevice, m_QueueFamilyIndices[0]);
 		m_PresentQueue = GetQueue(m_LogicalDevice, m_QueueFamilyIndices[1]);
+		log("Vulkan: Queues Set");
 
 		m_SwapchainFormat = ChooseSwapchainFormat(m_PhysicalDevice, m_Surface);
 		m_SwapchainExtent = ChooseSwapchainExtent(m_PhysicalDevice, m_Surface, m_Spec);
+		log("Vulkan: Chose Swapchain Format and Extent");
 
 		m_Swapchain = CreateSwapchain(m_QueueFamilyIndices, m_SwapchainFormat, m_SwapchainExtent, m_PhysicalDevice, m_Surface, m_Spec, m_LogicalDevice);
+		log("Vulkan: Swapchain Created");
+
 		m_SwapchainImages = m_LogicalDevice.getSwapchainImagesKHR(m_Swapchain);
 		m_SwapchainImageViews = CreateSwapchainImageViews(m_LogicalDevice, m_SwapchainImages, m_SwapchainFormat);
+		log("Vulkan: Swapchain Image and Image Views Created");
 
 		Run();
 	}
@@ -118,8 +123,8 @@ namespace hyper
 
 		if (spec.Debug)
 		{
-			extensions.push_back("VK_EXT_debug_utils"); // Adding validation and debug stuff to each vector to be used in instance
-			layers.push_back("VK_LAYER_KHRONOS_validation");
+			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // Adding validation and debug stuff to each vector to be used in instance
+			layers.push_back("VK_LAYER_KHRONOS_validation"); // Unfortunately no macro that I can find for layers :(
 		}
 
 		std::vector<vk::ExtensionProperties> supportedExtensions = vk::enumerateInstanceExtensionProperties();
@@ -255,20 +260,30 @@ namespace hyper
 		return std::vector<uint32_t>{ graphicsFamily, presentFamily };
 	}
 
-	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice& physicalDevice) const
+	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface,
+		const vk::PhysicalDevice& physicalDevice, const Spec& spec) const
 	{
 		std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-		float queuePriority = 0.0f;
+		float queuePriority = 0.0f; // Confusing
 		for (uint32_t& queueFamilyIndex : queueFamilyIndices)
 		{
 			queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
 				static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
 		}
 
-		const std::vector<const char*> logicalDeviceExtensions = { "VK_KHR_swapchain" };
+		std::vector<const char*> logicalDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME }, logicalDeviceLayers;
+		if (spec.Debug) { logicalDeviceLayers.push_back("VK_LAYER_KHRONOS_validation"); } // Added to device for compatability
 
+		log("Vulkan: Using Device Extensions:");
+		for (const char* extension : logicalDeviceExtensions) { log("\t" << extension); }
+		log("Vulkan: Using Device Layers:");
+		for (const char* layer : logicalDeviceLayers) { log("\t" << layer); }
+
+		vk::PhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures(true);
+		
 		vk::DeviceCreateInfo logicalDeviceInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(),
-			0u, nullptr, static_cast<uint32_t>(logicalDeviceExtensions.size()), logicalDeviceExtensions.data());
+			static_cast<uint32_t>(logicalDeviceLayers.size()), logicalDeviceLayers.data(),
+			static_cast<uint32_t>(logicalDeviceExtensions.size()), logicalDeviceExtensions.data(), 0u, &dynamicRenderingFeatures);
 
 		try
 		{
@@ -285,7 +300,7 @@ namespace hyper
 	{
 		try
 		{
-			return logicalDevice.getQueue(queueIndex, 0);
+			return logicalDevice.getQueue(queueIndex, 0); // As simple as that
 		}
 		catch (vk::SystemError err)
 		{
@@ -297,29 +312,27 @@ namespace hyper
 	vk::Format Application::ChooseSwapchainFormat(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const
 	{
 		std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
-		vk::Format usedFormat = formats[0].format;
 		for (const vk::SurfaceFormatKHR& format : formats)
 		{
-			if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) { usedFormat = format.format; }
+			if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) { return format.format; }
 		}
 
-		return usedFormat;
+		return formats[0].format;
 	}
 
 	vk::Extent2D Application::ChooseSwapchainExtent(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec) const
 	{
 		vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-		vk::Extent2D usedExtent = capabilities.currentExtent;
-		if (capabilities.currentExtent.width = UINT32_MAX) {
-
-			usedExtent = vk::Extent2D
+		if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) // Yoda was right all along
+		{
+			return
 			{
 				std::min(capabilities.maxImageExtent.width, std::max(capabilities.minImageExtent.width, spec.Width)),
 				std::min(capabilities.maxImageExtent.height, std::max(capabilities.minImageExtent.height, spec.Height))
 			};
 		}
 
-		return usedExtent;
+		return capabilities.currentExtent;
 	}
 
 	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, const vk::Format& format, const vk::Extent2D& extent,
@@ -327,17 +340,18 @@ namespace hyper
 	{
 		uint32_t imageCount = 2; // Double buffer
 
-		struct SM
-		{
-			vk::SharingMode sharingMode;
-			uint32_t familyIndexCount;
-			uint32_t* familyIndices;
-		} sharingModeUtil{ (queueFamilyIndices[0] != queueFamilyIndices[1]) ?
-			SM{ vk::SharingMode::eConcurrent, 2u, &queueFamilyIndices[0] } :	// REFERENCE TO FIRST POSITION IN MEMORY????
-			SM{ vk::SharingMode::eExclusive, 0u, {} } };						// APPARENTLY CONTIGUOUS?????? THANKS STACKOVERFLOW
 		
-		
+		vk::SharingMode sharingMode = vk::SharingMode::eExclusive;
+		uint32_t familyIndexCount = 0;
+		uint32_t* familyIndices{};
 
+		if (queueFamilyIndices[0] != queueFamilyIndices[1])
+		{
+			sharingMode = vk::SharingMode::eConcurrent;
+			familyIndexCount = 2u;
+			familyIndices = &queueFamilyIndices[0];
+		}					
+		
 		std::vector<vk::PresentModeKHR> presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
 		vk::PresentModeKHR usedPresentMode = vk::PresentModeKHR::eFifo;
 		for (const vk::PresentModeKHR& presentMode : presentModes)
@@ -346,9 +360,8 @@ namespace hyper
 		}
 
 		vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(), surface, imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
-			extent, 1, vk::ImageUsageFlagBits::eColorAttachment, sharingModeUtil.sharingMode, sharingModeUtil.familyIndexCount,
-			sharingModeUtil.familyIndices, vk::SurfaceTransformFlagBitsKHR::eIdentity, vk::CompositeAlphaFlagBitsKHR::eOpaque, usedPresentMode, true,
-			vk::SwapchainKHR(nullptr));
+			extent, 1, vk::ImageUsageFlagBits::eColorAttachment, sharingMode, familyIndexCount, familyIndices,
+			vk::SurfaceTransformFlagBitsKHR::eIdentity, vk::CompositeAlphaFlagBitsKHR::eOpaque, usedPresentMode, true, vk::SwapchainKHR(nullptr));
 
 		try
 		{

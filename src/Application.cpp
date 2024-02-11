@@ -2,17 +2,21 @@
 
 namespace hyper
 {
-	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+
+	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)// Not a fan of C-style
 	{																															// functions in vulkan-hpp :(
 		std::cerr << "Validation Layer: " << pCallbackData->pMessage << std::endl;
 		return false;
 	}
 
-	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)	// GLFW-specific key callback function
+	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)	// GLFW-specific key callback function
 	{
 		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) { glfwSetWindowShouldClose(window, GLFW_TRUE); } // Just closing for now :)
 	}
+
+	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format);
+	static std::vector<uint32_t> readFile(const std::string& filename);
 
 	Application::Application(Spec spec)
 	{
@@ -57,7 +61,80 @@ namespace hyper
 		m_SwapchainImageViews = CreateSwapchainImageViews(m_LogicalDevice, m_SwapchainImages, m_SwapchainFormat);
 		log("Vulkan: Swapchain Image and Image Views Created");
 
+		CreateGraphicsPipeline(m_LogicalDevice,	m_Spec, m_SwapchainExtent, m_SwapchainFormat);
+
 		Run();
+	}
+	
+	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format)
+	{
+		std::vector<uint32_t> vertShaderCode = readFile("res/shader/vert.vert.spv");
+		std::vector<uint32_t> fragShaderCode = readFile("res/shader/frag.frag.spv");
+		vk::ShaderModule vertShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), vertShaderCode });
+		vk::ShaderModule fragShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), fragShaderCode });
+
+		vk::PipelineShaderStageCreateInfo vertShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eVertex, vertShaderModule, "main");
+		vk::PipelineShaderStageCreateInfo fragShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eFragment, fragShaderModule, "main");
+		auto pipelineShaderStages = std::vector<vk::PipelineShaderStageCreateInfo>{ vertShaderStageInfo, fragShaderStageInfo };
+
+		vk::PipelineVertexInputStateCreateInfo vertexInputInfo(vk::PipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr);
+
+		vk::PipelineInputAssemblyStateCreateInfo inputAssembly(vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList, false);
+
+		vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(spec.Width), static_cast<float>(spec.Height), 0.0f, 1.0f);
+		vk::Rect2D scissor({ 0, 0 }, extent);
+
+		vk::PipelineViewportStateCreateInfo viewportState(vk::PipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor);
+
+		vk::PipelineRasterizationStateCreateInfo rasterizer(vk::PipelineRasterizationStateCreateFlags(), /*depthClamp*/ false, /*rasterizeDiscard*/ false,
+			vk::PolygonMode::eFill, {}, /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f);
+
+		vk::PipelineMultisampleStateCreateInfo multisampling (vk::PipelineMultisampleStateCreateFlags(), vk::SampleCountFlagBits::e1, false, 1.0 );
+
+		vk::PipelineColorBlendAttachmentState colorBlendAttachment({}, /*srcCol*/ vk::BlendFactor::eOne, /*dstCol*/ vk::BlendFactor::eZero,
+			/*colBlend*/ vk::BlendOp::eAdd, /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero, /*alphaBlend*/ vk::BlendOp::eAdd,
+			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+
+		vk::PipelineColorBlendStateCreateInfo colorBlending(vk::PipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/ false, vk::LogicOp::eCopy,
+			/*attachmentCount=*/ 1, /*colourAttachments=*/ &colorBlendAttachment);
+
+		vk::PipelineLayout pipelineLayout = logicalDevice.createPipelineLayout({});
+
+		vk::AttachmentDescription colorAttachment({}, format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
+			{}, {}, {}, vk::ImageLayout::ePresentSrcKHR);
+
+		vk::AttachmentReference colourAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
+
+		vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, & colourAttachmentRef);
+
+		vk::SemaphoreCreateInfo semaphoreCreateInfo{};
+		vk::Semaphore imageAvailableSemaphore = logicalDevice.createSemaphore(semaphoreCreateInfo);
+		vk::Semaphore renderFinishedSemaphore = logicalDevice.createSemaphore(semaphoreCreateInfo);
+
+		vk::SubpassDependency subpassDependency(VK_SUBPASS_EXTERNAL, 0, vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			vk::PipelineStageFlagBits::eColorAttachmentOutput, {}, vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite);
+
+		vk::RenderPass renderPass = logicalDevice.createRenderPass(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
+
+		//auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr,
+		//	&viewportState, &rasterizer, &multisampling, nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
+
+		//vk::Pipeline pipeline = logicalDevice.createGraphicsPipeline({}, pipelineCreateInfo).value;
+
+		logicalDevice.destroyShaderModule(vertShaderModule);
+		logicalDevice.destroyShaderModule(fragShaderModule);
+	}
+
+	static std::vector<uint32_t> readFile(const std::string& filename)
+	{
+		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+		if (!file.is_open()) { throw std::runtime_error("failed to open file!"); }
+		size_t fileSize = (size_t)file.tellg();
+		std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+		file.seekg(0);
+		file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+		file.close();
+		return buffer;
 	}
 
 	Application::~Application() // Destroy objects in the opposite order they were created in
@@ -257,6 +334,11 @@ namespace hyper
 
 			queueFamilyIndex++;
 		}
+		if (graphicsFamily == -1 && presentFamily == -1)
+		{
+			log("Vulkan: Couldn't find Queue Families!");
+			throw std::runtime_error("Vulkan: Couldn't find Queue Families!");
+		}
 		return std::vector<uint32_t>{ graphicsFamily, presentFamily };
 	}
 
@@ -340,15 +422,14 @@ namespace hyper
 	{
 		uint32_t imageCount = 2; // Double buffer
 
-		
 		vk::SharingMode sharingMode = vk::SharingMode::eExclusive;
 		uint32_t familyIndexCount = 0;
-		uint32_t* familyIndices{};
+		uint32_t* familyIndices = nullptr;
 
 		if (queueFamilyIndices[0] != queueFamilyIndices[1])
 		{
 			sharingMode = vk::SharingMode::eConcurrent;
-			familyIndexCount = 2u;
+			familyIndexCount = 2;
 			familyIndices = &queueFamilyIndices[0];
 		}					
 		

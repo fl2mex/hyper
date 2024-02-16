@@ -68,14 +68,14 @@ namespace hyper
 	
 	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format)
 	{
-		std::vector<uint32_t> vertShaderCode = readFile("res/shader/vert.vert.spv");
+		std::vector<uint32_t> vertShaderCode = readFile("res/shader/vert.vert.spv"); // Silly names but I like Sascha's compile tool so I keep :)
 		std::vector<uint32_t> fragShaderCode = readFile("res/shader/frag.frag.spv");
 		vk::ShaderModule vertShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), vertShaderCode });
 		vk::ShaderModule fragShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), fragShaderCode });
 
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eVertex, vertShaderModule, "main");
 		vk::PipelineShaderStageCreateInfo fragShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eFragment, fragShaderModule, "main");
-		auto pipelineShaderStages = std::vector<vk::PipelineShaderStageCreateInfo>{ vertShaderStageInfo, fragShaderStageInfo };
+		std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputInfo(vk::PipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr);
 
@@ -116,10 +116,10 @@ namespace hyper
 
 		vk::RenderPass renderPass = logicalDevice.createRenderPass(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
 
-		//auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr,
-		//	&viewportState, &rasterizer, &multisampling, nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
+		vk::GraphicsPipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr,
+			&viewportState, &rasterizer, &multisampling, nullptr, &colorBlending, nullptr, pipelineLayout, renderPass, 0);
 
-		//vk::Pipeline pipeline = logicalDevice.createGraphicsPipeline({}, pipelineCreateInfo).value;
+		vk::Pipeline pipeline = logicalDevice.createGraphicsPipeline({}, pipelineCreateInfo).value;
 
 		logicalDevice.destroyShaderModule(vertShaderModule);
 		logicalDevice.destroyShaderModule(fragShaderModule);

@@ -18,7 +18,7 @@ namespace hyper
 	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format);
 	static std::vector<uint32_t> readFile(const std::string& filename);
 
-	Application::Application(Spec spec)
+	Application::Application(const Spec& spec)
 	{
 		m_Spec = spec; // Copy
 
@@ -230,7 +230,7 @@ namespace hyper
 		}
 	}
 
-	vk::DispatchLoaderDynamic Application::CreateDLDI(const vk::Instance& instance) const
+	vk::DispatchLoaderDynamic Application::CreateDLDI(vk::Instance instance) const
 	{
 		try
 		{
@@ -243,7 +243,7 @@ namespace hyper
 		}
 	}
 	
-	vk::DebugUtilsMessengerEXT Application::CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const
+	vk::DebugUtilsMessengerEXT Application::CreateDebugMessenger(vk::Instance instance, const vk::DispatchLoaderDynamic& dldi) const
 	{
 		vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerInfo = vk::DebugUtilsMessengerCreateInfoEXT(vk::DebugUtilsMessengerCreateFlagsEXT(),
 			vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError, // eVerbose is annoying, add back if needed
@@ -261,7 +261,7 @@ namespace hyper
 		}
 	}
 
-	vk::SurfaceKHR Application::CreateSurface(const vk::Instance& instance, GLFWwindow* window) const
+	vk::SurfaceKHR Application::CreateSurface(vk::Instance instance, GLFWwindow* window) const
 	{
 		VkSurfaceKHR surface; // Must use C-style convention before casting via return
 		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
@@ -273,7 +273,7 @@ namespace hyper
 		// But why add a new dependency instead of just dealing with C twice?
 	}
 
-	vk::PhysicalDevice Application::ChoosePhysicalDevice(const vk::Instance& instance) const
+	vk::PhysicalDevice Application::ChoosePhysicalDevice(vk::Instance instance) const
 	{
 		std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
 
@@ -312,7 +312,7 @@ namespace hyper
 		return physicalDevices[gpuIndex];
 	}
 
-	std::vector<uint32_t> Application::FindQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const
+	std::vector<uint32_t> Application::FindQueueFamilies(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const
 	{
 		std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
 		uint32_t graphicsFamily = -1, presentFamily = -1, queueFamilyIndex = 0;
@@ -342,8 +342,7 @@ namespace hyper
 		return std::vector<uint32_t>{ graphicsFamily, presentFamily };
 	}
 
-	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface,
-		const vk::PhysicalDevice& physicalDevice, const Spec& spec) const
+	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, vk::SurfaceKHR surface, vk::PhysicalDevice physicalDevice, const Spec& spec) const
 	{
 		std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 		float queuePriority = 0.0f; // Confusing
@@ -391,7 +390,7 @@ namespace hyper
 		}
 	}
 
-	vk::Format Application::ChooseSwapchainFormat(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const
+	vk::Format Application::ChooseSwapchainFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const
 	{
 		std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
 		for (const vk::SurfaceFormatKHR& format : formats)
@@ -402,7 +401,7 @@ namespace hyper
 		return formats[0].format;
 	}
 
-	vk::Extent2D Application::ChooseSwapchainExtent(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec) const
+	vk::Extent2D Application::ChooseSwapchainExtent(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const Spec& spec) const
 	{
 		vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 		if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) // Yoda was right all along
@@ -417,8 +416,8 @@ namespace hyper
 		return capabilities.currentExtent;
 	}
 
-	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, const vk::Format& format, const vk::Extent2D& extent,
-		const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec, const vk::Device& logicalDevice) const
+	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::Format format, vk::Extent2D extent, vk::PhysicalDevice physicalDevice,
+		vk::SurfaceKHR surface, const Spec& spec, vk::Device logicalDevice) const
 	{
 		uint32_t imageCount = 2; // Double buffer
 
@@ -455,8 +454,7 @@ namespace hyper
 		}
 	}
 	
-	std::vector<vk::ImageView> Application::CreateSwapchainImageViews(const vk::Device& logicalDevice, std::vector<vk::Image> swapchainImages,
-		const vk::Format& format) const
+	std::vector<vk::ImageView> Application::CreateSwapchainImageViews(vk::Device logicalDevice, std::vector<vk::Image> swapchainImages, vk::Format format) const
 	{
 		std::vector<vk::ImageView> imageViews;
 		for (const vk::Image& image : swapchainImages)

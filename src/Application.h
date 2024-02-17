@@ -7,7 +7,7 @@ namespace hyper
 	class Application
 	{
 	public:
-		Application(Spec spec);
+		Application(const Spec& spec);
 		~Application();
 
 	private:
@@ -15,26 +15,22 @@ namespace hyper
 		
 		vk::Instance CreateInstance(const Spec& spec) const;
 
-		vk::DispatchLoaderDynamic CreateDLDI(const vk::Instance& instance) const;
-		vk::DebugUtilsMessengerEXT CreateDebugMessenger(const vk::Instance& instance, const vk::DispatchLoaderDynamic& dldi) const;
+		vk::DispatchLoaderDynamic CreateDLDI(vk::Instance instance) const;
+		vk::DebugUtilsMessengerEXT CreateDebugMessenger(vk::Instance instance, const vk::DispatchLoaderDynamic& dldi) const;
 
-		vk::SurfaceKHR CreateSurface(const vk::Instance& instance, GLFWwindow* window) const;
+		vk::SurfaceKHR CreateSurface(vk::Instance instance, GLFWwindow* window) const;
 
-		vk::PhysicalDevice ChoosePhysicalDevice(const vk::Instance& instance) const;
-
-		std::vector<uint32_t> FindQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const;
-
-		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, const vk::SurfaceKHR& surface, const vk::PhysicalDevice&,
-			const Spec& spec) const;
+		vk::PhysicalDevice ChoosePhysicalDevice(vk::Instance instance) const;
+		std::vector<uint32_t> FindQueueFamilies(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const;
+		vk::Device CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, vk::SurfaceKHR surface, vk::PhysicalDevice, const Spec& spec) const;
 
 		vk::Queue GetQueue(vk::Device logicalDevice, uint32_t queueIndex) const;
 
-		vk::Format ChooseSwapchainFormat(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) const;
-		vk::Extent2D ChooseSwapchainExtent(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec) const;
-		vk::SwapchainKHR CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, const vk::Format& format, const vk::Extent2D& extent,
-			const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface, const Spec& spec, const vk::Device& logicalDevice) const;
-		std::vector<vk::ImageView> CreateSwapchainImageViews(const vk::Device& logicalDevice, std::vector<vk::Image> swapchainImages,
-			const vk::Format& format) const;
+		vk::Format ChooseSwapchainFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const;
+		vk::Extent2D ChooseSwapchainExtent(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const Spec& spec) const;
+		vk::SwapchainKHR CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::Format format, vk::Extent2D extent, vk::PhysicalDevice physicalDevice,
+			vk::SurfaceKHR surface, const Spec& spec, vk::Device logicalDevice) const;
+		std::vector<vk::ImageView> CreateSwapchainImageViews(vk::Device logicalDevice, std::vector<vk::Image> swapchainImages, vk::Format format) const;
 
 		void Run();
 

@@ -15,7 +15,6 @@ namespace hyper
 		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) { glfwSetWindowShouldClose(window, GLFW_TRUE); } // Just closing for now :)
 	}
 
-	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format);
 	static std::vector<uint32_t> readFile(const std::string& filename);
 
 	Application::Application(const Spec& spec)
@@ -57,24 +56,17 @@ namespace hyper
 		m_Swapchain = CreateSwapchain(m_QueueFamilyIndices, m_SwapchainFormat, m_SwapchainExtent, m_PhysicalDevice, m_Surface, m_Spec, m_LogicalDevice);
 		log("Vulkan: Swapchain Created");
 
-		m_SwapchainImages = m_LogicalDevice.getSwapchainImagesKHR(m_Swapchain);
+		m_SwapchainImages = m_LogicalDevice->getSwapchainImagesKHR(m_Swapchain.get());
 		m_SwapchainImageViews = CreateSwapchainImageViews(m_LogicalDevice, m_SwapchainImages, m_SwapchainFormat);
 		log("Vulkan: Swapchain Image and Image Views Created");
 
-		CreateGraphicsPipeline(m_LogicalDevice,	m_Spec, m_SwapchainExtent, m_SwapchainFormat);
-
-		Run();
-	}
-	
-	void CreateGraphicsPipeline(vk::Device logicalDevice, Spec spec, vk::Extent2D extent, vk::Format format)
-	{
-		std::vector<uint32_t> vertShaderCode = readFile("res/shader/vert.vert.spv"); // Silly names but I like Sascha's compile tool so I keep :)
+		std::vector<uint32_t> vertShaderCode = readFile("res/shader/vert.vert.spv"); // Genuinely infuriating
 		std::vector<uint32_t> fragShaderCode = readFile("res/shader/frag.frag.spv");
-		vk::ShaderModule vertShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), vertShaderCode });
-		vk::ShaderModule fragShaderModule = logicalDevice.createShaderModule({ vk::ShaderModuleCreateFlags(), fragShaderCode });
+		vk::UniqueShaderModule vertShaderModule = m_LogicalDevice->createShaderModuleUnique({ vk::ShaderModuleCreateFlags(), vertShaderCode });
+		vk::UniqueShaderModule fragShaderModule = m_LogicalDevice->createShaderModuleUnique({ vk::ShaderModuleCreateFlags(), fragShaderCode });
 
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eVertex, vertShaderModule, "main");
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eFragment, fragShaderModule, "main");
+		vk::PipelineShaderStageCreateInfo vertShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eVertex, *vertShaderModule, "main");
+		vk::PipelineShaderStageCreateInfo fragShaderStageInfo(vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eFragment, *fragShaderModule, "main");
 		std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputInfo(vk::PipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr);
@@ -82,14 +74,14 @@ namespace hyper
 		vk::PipelineInputAssemblyStateCreateInfo inputAssembly(vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList, false);
 
 		vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(spec.Width), static_cast<float>(spec.Height), 0.0f, 1.0f);
-		vk::Rect2D scissor({ 0, 0 }, extent);
+		vk::Rect2D scissor({ 0, 0 }, m_SwapchainExtent);
 
 		vk::PipelineViewportStateCreateInfo viewportState(vk::PipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor);
 
 		vk::PipelineRasterizationStateCreateInfo rasterizer(vk::PipelineRasterizationStateCreateFlags(), /*depthClamp*/ false, /*rasterizeDiscard*/ false,
 			vk::PolygonMode::eFill, {}, /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f);
 
-		vk::PipelineMultisampleStateCreateInfo multisampling (vk::PipelineMultisampleStateCreateFlags(), vk::SampleCountFlagBits::e1, false, 1.0 );
+		vk::PipelineMultisampleStateCreateInfo multisampling(vk::PipelineMultisampleStateCreateFlags(), vk::SampleCountFlagBits::e1, false, 1.0);
 
 		vk::PipelineColorBlendAttachmentState colorBlendAttachment({}, /*srcCol*/ vk::BlendFactor::eOne, /*dstCol*/ vk::BlendFactor::eZero,
 			/*colBlend*/ vk::BlendOp::eAdd, /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero, /*alphaBlend*/ vk::BlendOp::eAdd,
@@ -98,31 +90,76 @@ namespace hyper
 		vk::PipelineColorBlendStateCreateInfo colorBlending(vk::PipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/ false, vk::LogicOp::eCopy,
 			/*attachmentCount=*/ 1, /*colourAttachments=*/ &colorBlendAttachment);
 
-		vk::PipelineLayout pipelineLayout = logicalDevice.createPipelineLayout({});
+		vk::UniquePipelineLayout pipelineLayout = m_LogicalDevice->createPipelineLayoutUnique({});
 
-		vk::AttachmentDescription colorAttachment({}, format, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
+		vk::AttachmentDescription colorAttachment({}, m_SwapchainFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
 			{}, {}, {}, vk::ImageLayout::ePresentSrcKHR);
 
 		vk::AttachmentReference colourAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
 
-		vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, & colourAttachmentRef);
+		vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef);
 
 		vk::SemaphoreCreateInfo semaphoreCreateInfo{};
-		vk::Semaphore imageAvailableSemaphore = logicalDevice.createSemaphore(semaphoreCreateInfo);
-		vk::Semaphore renderFinishedSemaphore = logicalDevice.createSemaphore(semaphoreCreateInfo);
+		vk::UniqueSemaphore imageAvailableSemaphore = m_LogicalDevice->createSemaphoreUnique(semaphoreCreateInfo);
+		vk::UniqueSemaphore renderFinishedSemaphore = m_LogicalDevice->createSemaphoreUnique(semaphoreCreateInfo);
 
 		vk::SubpassDependency subpassDependency(VK_SUBPASS_EXTERNAL, 0, vk::PipelineStageFlagBits::eColorAttachmentOutput,
 			vk::PipelineStageFlagBits::eColorAttachmentOutput, {}, vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite);
 
-		vk::RenderPass renderPass = logicalDevice.createRenderPass(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
+		vk::UniqueRenderPass renderPass = m_LogicalDevice->createRenderPassUnique(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
 
 		vk::GraphicsPipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr,
-			&viewportState, &rasterizer, &multisampling, nullptr, &colorBlending, nullptr, pipelineLayout, renderPass, 0);
+			&viewportState, &rasterizer, &multisampling, nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0);
 
-		vk::Pipeline pipeline = logicalDevice.createGraphicsPipeline({}, pipelineCreateInfo).value;
+		vk::UniquePipeline pipeline = m_LogicalDevice->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
 
-		logicalDevice.destroyShaderModule(vertShaderModule);
-		logicalDevice.destroyShaderModule(fragShaderModule);
+		auto framebuffers = std::vector<vk::UniqueFramebuffer>(2);
+		for (size_t i = 0; i < m_SwapchainImageViews.size(); i++) {
+			framebuffers[i] = m_LogicalDevice->createFramebufferUnique(vk::FramebufferCreateInfo{
+				{}, *renderPass, 1, &(*m_SwapchainImageViews[i]), m_SwapchainExtent.width, m_SwapchainExtent.height, 1 });
+		}
+		auto commandPoolUnique = m_LogicalDevice->createCommandPoolUnique({ {}, static_cast<uint32_t>(m_QueueFamilyIndices[0]) });
+
+		std::vector<vk::UniqueCommandBuffer> commandBuffers = m_LogicalDevice->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPoolUnique.get(),
+			vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(framebuffers.size())));
+
+		auto deviceQueue = m_LogicalDevice->getQueue(static_cast<uint32_t>(m_QueueFamilyIndices[0]), 0);
+		auto presentQueue = m_LogicalDevice->getQueue(static_cast<uint32_t>(m_QueueFamilyIndices[1]), 0);
+
+		for (size_t i = 0; i < commandBuffers.size(); i++) {
+
+			auto beginInfo = vk::CommandBufferBeginInfo{};
+			commandBuffers[i]->begin(beginInfo);
+			vk::ClearValue clearValues{};
+			auto renderPassBeginInfo = vk::RenderPassBeginInfo{ renderPass.get(), framebuffers[i].get(),
+				vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, &clearValues };
+
+			commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+			commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
+			commandBuffers[i]->draw(3, 1, 0, 0);
+			commandBuffers[i]->endRenderPass();
+			commandBuffers[i]->end();
+		}
+
+		while (!glfwWindowShouldClose(m_Window)) // Main Loop
+		{
+			glfwPollEvents();
+			auto imageIndex = m_LogicalDevice->acquireNextImageKHR(m_Swapchain.get(),
+				std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
+
+			vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+			auto submitInfo = vk::SubmitInfo{ 1, &imageAvailableSemaphore.get(), &waitStageMask, 1,
+				&commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
+
+			deviceQueue.submit(submitInfo, {});
+
+			auto presentInfo = vk::PresentInfoKHR{ 1, &renderFinishedSemaphore.get(), 1,
+				&m_Swapchain.get(), &imageIndex.value };
+			auto result = presentQueue.presentKHR(presentInfo);
+
+			m_LogicalDevice->waitIdle();
+		}
 	}
 
 	static std::vector<uint32_t> readFile(const std::string& filename)
@@ -137,21 +174,9 @@ namespace hyper
 		return buffer;
 	}
 
-	Application::~Application() // Destroy objects in the opposite order they were created in
+	Application::~Application()
 	{
-		for (const vk::ImageView& imageView : m_SwapchainImageViews) { m_LogicalDevice.destroyImageView(imageView); }
-
-		m_LogicalDevice.destroySwapchainKHR(m_Swapchain);
-
-		m_LogicalDevice.destroy();
-
-		if (m_Spec.Debug) { m_Instance.destroyDebugUtilsMessengerEXT(m_DebugMessenger, nullptr, m_DLDI); }
-
-		m_Instance.destroySurfaceKHR(m_Surface);
-
-		m_Instance.destroy();
-
-		glfwDestroyWindow(m_Window);
+		glfwDestroyWindow(m_Window); // Moved to vulkan-hpp's Unique system, only have to remove GLFW!
 		glfwTerminate();
 	}
 
@@ -184,7 +209,7 @@ namespace hyper
 		return window;
 	}
 
-	vk::Instance Application::CreateInstance(const Spec& spec) const
+	vk::UniqueInstance Application::CreateInstance(const Spec& spec) const
 	{
 		uint32_t glfwExtensionCount = 0; // C arcane magic
 		const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -221,7 +246,7 @@ namespace hyper
 
 		try
 		{
-			return vk::createInstance(instanceInfo);
+			return vk::createInstanceUnique(instanceInfo);
 		}
 		catch (vk::SystemError err)
 		{
@@ -230,11 +255,11 @@ namespace hyper
 		}
 	}
 
-	vk::DispatchLoaderDynamic Application::CreateDLDI(vk::Instance instance) const
+	vk::DispatchLoaderDynamic Application::CreateDLDI(vk::UniqueInstance& instance) const
 	{
 		try
 		{
-			return vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+			return vk::DispatchLoaderDynamic(*instance, vkGetInstanceProcAddr);
 		}
 		catch (vk::SystemError err)
 		{
@@ -243,7 +268,7 @@ namespace hyper
 		}
 	}
 	
-	vk::DebugUtilsMessengerEXT Application::CreateDebugMessenger(vk::Instance instance, const vk::DispatchLoaderDynamic& dldi) const
+	vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> Application::CreateDebugMessenger(vk::UniqueInstance& instance, const vk::DispatchLoaderDynamic& dldi) const
 	{
 		vk::DebugUtilsMessengerCreateInfoEXT debugUtilsMessengerInfo = vk::DebugUtilsMessengerCreateInfoEXT(vk::DebugUtilsMessengerCreateFlagsEXT(),
 			vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError, // eVerbose is annoying, add back if needed
@@ -252,7 +277,7 @@ namespace hyper
 
 		try
 		{
-			return instance.createDebugUtilsMessengerEXT(debugUtilsMessengerInfo, nullptr, dldi);
+			return instance->createDebugUtilsMessengerEXTUnique(debugUtilsMessengerInfo, nullptr, dldi);
 		}
 		catch (vk::SystemError err)
 		{
@@ -261,21 +286,21 @@ namespace hyper
 		}
 	}
 
-	vk::SurfaceKHR Application::CreateSurface(vk::Instance instance, GLFWwindow* window) const
+	vk::UniqueSurfaceKHR Application::CreateSurface(vk::UniqueInstance& instance, GLFWwindow* window) const
 	{
 		VkSurfaceKHR surface; // Must use C-style convention before casting via return
-		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+		if (glfwCreateWindowSurface(*instance, window, nullptr, &surface) != VK_SUCCESS)
 		{
 			log("GLFW: Couldn't create surface!");
 			throw std::runtime_error("GLFW: Couldn't create surface!");
 		}
-		return surface; // Could use GLFWPP or any other wrapper to probably fix this
+		return vk::UniqueSurfaceKHR(surface, *instance); // Could use GLFWPP or any other wrapper to probably fix this
 		// But why add a new dependency instead of just dealing with C twice?
 	}
 
-	vk::PhysicalDevice Application::ChoosePhysicalDevice(vk::Instance instance) const
+	vk::PhysicalDevice Application::ChoosePhysicalDevice(vk::UniqueInstance& instance) const
 	{
-		std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+		std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
 
 		if (physicalDevices.size() == 0)
 		{
@@ -312,7 +337,7 @@ namespace hyper
 		return physicalDevices[gpuIndex];
 	}
 
-	std::vector<uint32_t> Application::FindQueueFamilies(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const
+	std::vector<uint32_t> Application::FindQueueFamilies(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface) const
 	{
 		std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
 		uint32_t graphicsFamily = -1, presentFamily = -1, queueFamilyIndex = 0;
@@ -322,7 +347,7 @@ namespace hyper
 				graphicsFamily = queueFamilyIndex;
 			}
 
-			if (physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, surface) && queueFamilyIndex != graphicsFamily)
+			if (physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, *surface) && queueFamilyIndex != graphicsFamily)
 			{
 				presentFamily = queueFamilyIndex;
 			}
@@ -342,7 +367,7 @@ namespace hyper
 		return std::vector<uint32_t>{ graphicsFamily, presentFamily };
 	}
 
-	vk::Device Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, vk::SurfaceKHR surface, vk::PhysicalDevice physicalDevice, const Spec& spec) const
+	vk::UniqueDevice Application::CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, vk::UniqueSurfaceKHR& surface, vk::PhysicalDevice physicalDevice, const Spec& spec) const
 	{
 		std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 		float queuePriority = 0.0f; // Confusing
@@ -368,7 +393,7 @@ namespace hyper
 
 		try
 		{
-			return physicalDevice.createDevice(logicalDeviceInfo);
+			return physicalDevice.createDeviceUnique(logicalDeviceInfo);
 		}
 		catch (vk::SystemError err)
 		{
@@ -377,11 +402,11 @@ namespace hyper
 		}
 	}
 
-	vk::Queue Application::GetQueue(vk::Device logicalDevice, uint32_t queueIndex) const
+	vk::Queue Application::GetQueue(vk::UniqueDevice& logicalDevice, uint32_t queueIndex) const
 	{
 		try
 		{
-			return logicalDevice.getQueue(queueIndex, 0); // As simple as that
+			return logicalDevice->getQueue(queueIndex, 0); // As simple as that
 		}
 		catch (vk::SystemError err)
 		{
@@ -390,9 +415,9 @@ namespace hyper
 		}
 	}
 
-	vk::Format Application::ChooseSwapchainFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) const
+	vk::Format Application::ChooseSwapchainFormat(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface) const
 	{
-		std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
+		std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 		for (const vk::SurfaceFormatKHR& format : formats)
 		{
 			if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) { return format.format; }
@@ -401,9 +426,9 @@ namespace hyper
 		return formats[0].format;
 	}
 
-	vk::Extent2D Application::ChooseSwapchainExtent(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const Spec& spec) const
+	vk::Extent2D Application::ChooseSwapchainExtent(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface, const Spec& spec) const
 	{
-		vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+		vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
 		if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) // Yoda was right all along
 		{
 			return
@@ -416,8 +441,8 @@ namespace hyper
 		return capabilities.currentExtent;
 	}
 
-	vk::SwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::Format format, vk::Extent2D extent, vk::PhysicalDevice physicalDevice,
-		vk::SurfaceKHR surface, const Spec& spec, vk::Device logicalDevice) const
+	vk::UniqueSwapchainKHR Application::CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::Format format, vk::Extent2D extent, vk::PhysicalDevice physicalDevice,
+		vk::UniqueSurfaceKHR& surface, const Spec& spec, vk::UniqueDevice& logicalDevice) const
 	{
 		uint32_t imageCount = 2; // Double buffer
 
@@ -432,20 +457,20 @@ namespace hyper
 			familyIndices = &queueFamilyIndices[0];
 		}					
 		
-		std::vector<vk::PresentModeKHR> presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+		std::vector<vk::PresentModeKHR> presentModes = physicalDevice.getSurfacePresentModesKHR(*surface);
 		vk::PresentModeKHR usedPresentMode = vk::PresentModeKHR::eFifo;
 		for (const vk::PresentModeKHR& presentMode : presentModes)
 		{
 			if (presentMode == vk::PresentModeKHR::eMailbox) { usedPresentMode = presentMode; }
 		}
 
-		vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(), surface, imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
+		vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(), *surface, imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
 			extent, 1, vk::ImageUsageFlagBits::eColorAttachment, sharingMode, familyIndexCount, familyIndices,
 			vk::SurfaceTransformFlagBitsKHR::eIdentity, vk::CompositeAlphaFlagBitsKHR::eOpaque, usedPresentMode, true, vk::SwapchainKHR(nullptr));
 
 		try
 		{
-			return logicalDevice.createSwapchainKHR(swapChainCreateInfo);
+			return logicalDevice->createSwapchainKHRUnique(swapChainCreateInfo);
 		}
 		catch (vk::SystemError err)
 		{
@@ -454,16 +479,16 @@ namespace hyper
 		}
 	}
 	
-	std::vector<vk::ImageView> Application::CreateSwapchainImageViews(vk::Device logicalDevice, std::vector<vk::Image> swapchainImages, vk::Format format) const
+	std::vector<vk::UniqueImageView> Application::CreateSwapchainImageViews(vk::UniqueDevice& logicalDevice, std::vector<vk::Image> swapchainImages, vk::Format format) const
 	{
-		std::vector<vk::ImageView> imageViews;
+		std::vector<vk::UniqueImageView> imageViews;
 		for (const vk::Image& image : swapchainImages)
 		{
 			vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image,
 				vk::ImageViewType::e2D, format,
 				vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB,vk::ComponentSwizzle::eA },
 				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-			imageViews.push_back(logicalDevice.createImageView(imageViewCreateInfo));
+			imageViews.push_back(logicalDevice->createImageViewUnique(imageViewCreateInfo));
 		}
 
 		return imageViews;
@@ -471,9 +496,6 @@ namespace hyper
 
 	void Application::Run()
 	{
-		while (!glfwWindowShouldClose(m_Window)) // Main Loop
-		{
-			glfwPollEvents();
-		}
+		// Moved for convenience, will fix later
 	}
 }

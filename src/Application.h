@@ -1,61 +1,44 @@
 #pragma once
 #include "Include.h"
-#include "Spec.h"
 
 namespace hyper
 {
 	class Application
 	{
 	public:
-		Application(const Spec& spec);
+		Application(Spec _spec); // RAII ftw, nah jk its alright
+		void Run();
 		~Application();
 
 	private:
-		GLFWwindow* CreateWindow(const Spec& spec) const;
-		
-		vk::UniqueInstance CreateInstance(const Spec& spec) const;
+		Spec m_Spec{};
+		GLFWwindow* m_Window{};
 
-		vk::DispatchLoaderDynamic CreateDLDI(vk::UniqueInstance& instance) const;
-		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> CreateDebugMessenger(vk::UniqueInstance& instance, const vk::DispatchLoaderDynamic& dldi) const;
-		vk::UniqueSurfaceKHR CreateSurface(vk::UniqueInstance& instance, GLFWwindow* window) const;
+		// Could maybe hide all of this away in a "renderer" class
+		vk::UniqueInstance m_Instance{};
+		vk::DispatchLoaderDynamic m_DLDI{};
+		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> m_DebugMessenger{}; // "vk::UniqueDebugUtilsMessengerEXT" should exist or something
+		vk::UniqueSurfaceKHR m_Surface{};
 
-		vk::PhysicalDevice ChoosePhysicalDevice(vk::UniqueInstance& instance) const;
-		std::vector<uint32_t> FindQueueFamilies(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface) const;
-		vk::UniqueDevice CreateLogicalDevice(std::vector<uint32_t> queueFamilyIndices, vk::UniqueSurfaceKHR& surface, vk::PhysicalDevice, const Spec& spec) const;
+		vk::PhysicalDevice m_PhysicalDevice{};
+		vk::UniqueDevice m_Device{};
+		vk::Queue m_DeviceQueue{};
+		vk::Queue m_PresentQueue{};
+		vk::UniqueSwapchainKHR m_Swapchain{};
 
-		vk::Queue GetQueue(vk::UniqueDevice& logicalDevice, uint32_t queueIndex) const;
+		std::vector<vk::Image> m_SwapChainImages{}; // Can this be turned unique as well? Or is it meant to be normal, deallocation at end of program instead of scope
+		std::vector<vk::UniqueImageView> m_ImageViews{}; // Some codebases group these together as a struct
+		std::vector<vk::UniqueFramebuffer> m_Framebuffers{};
 
-		vk::Format ChooseSwapchainFormat(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface) const;
-		vk::Extent2D ChooseSwapchainExtent(vk::PhysicalDevice physicalDevice, vk::UniqueSurfaceKHR& surface, const Spec& spec) const;
-		vk::UniqueSwapchainKHR CreateSwapchain(std::vector<uint32_t> queueFamilyIndices, vk::Format format, vk::Extent2D extent, vk::PhysicalDevice physicalDevice,
-			vk::UniqueSurfaceKHR& surface, const Spec& spec, vk::UniqueDevice& logicalDevice) const;
-		std::vector<vk::UniqueImageView> CreateSwapchainImageViews(vk::UniqueDevice& logicalDevice, std::vector<vk::Image> swapchainImages, vk::Format format) const;
+		vk::UniquePipelineLayout m_PipelineLayout{}; // Can this go out of scope?
+		vk::UniqueRenderPass m_RenderPass{};
+		vk::UniquePipeline m_Pipeline{};
 
-		void Run();
+		vk::UniqueCommandPool m_CommandPoolUnique{};
+		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 
-	private:
-		Spec m_Spec; // Custom Spec struct, check Spec.h for options
-
-		GLFWwindow* m_Window{ nullptr };
-
-		vk::UniqueInstance m_Instance{ nullptr };
-
-		vk::DispatchLoaderDynamic m_DLDI;
-		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> m_DebugMessenger{ nullptr };
-
-		vk::UniqueSurfaceKHR m_Surface{ nullptr };
-
-		vk::PhysicalDevice m_PhysicalDevice{ nullptr };
-		std::vector<uint32_t> m_QueueFamilyIndices; // Graphics, Present - would a struct be nicer?
-		vk::UniqueDevice m_LogicalDevice{ nullptr };
-
-		vk::Queue m_GraphicsQueue{ nullptr };
-		vk::Queue m_PresentQueue{ nullptr };
-
-		vk::Extent2D m_SwapchainExtent; // Should move this stuff into a struct
-		vk::Format m_SwapchainFormat;
-		vk::UniqueSwapchainKHR m_Swapchain{ nullptr };
-		std::vector<vk::Image> m_SwapchainImages;
-		std::vector<vk::UniqueImageView> m_SwapchainImageViews;
+		vk::UniqueFence m_InFlightFence{};
+		vk::UniqueSemaphore m_ImageAvailableSemaphore{};
+		vk::UniqueSemaphore m_RenderFinishedSemaphore{};
 	};
 }

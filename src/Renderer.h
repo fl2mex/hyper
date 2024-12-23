@@ -4,6 +4,13 @@
 
 namespace hyper
 {
+	struct SM
+	{ // Black magic, from dokipen3d on github
+		vk::SharingMode sharingMode;
+		uint32_t familyIndicesCount;
+		uint32_t* familyIndicesDataPtr;
+	};
+
 	class Renderer
 	{
 	public:
@@ -11,7 +18,12 @@ namespace hyper
 		void DrawFrame();
 		~Renderer();
 
+		bool m_FramebufferResized = false;
+		int bruhtesting = 0;
 	private:
+		void RecreateSwapchain();
+		void RecreateCommandBuffers();
+
 		Spec m_Spec;
 		GLFWwindow* m_Window;
 
@@ -26,9 +38,15 @@ namespace hyper
 		vk::UniqueDevice m_Device{};
 		vk::Queue m_DeviceQueue{};
 		vk::Queue m_PresentQueue{};
+		
+		vk::Format m_SwapchainImageFormat{};
+		vk::Extent2D m_SwapchainExtent{};
+		uint32_t m_SwapchainImageCount{};
+		SM m_SharingModeUtil;
+		
 		vk::UniqueSwapchainKHR m_Swapchain{};
 
-		std::vector<vk::Image> m_SwapChainImages{}; // Can this be turned unique as well? Or is it meant to be normal, deallocation at end of program instead of scope
+		std::vector<vk::Image> m_SwapchainImages{}; // Can this be turned unique as well?
 		std::vector<vk::UniqueImageView> m_ImageViews{};
 		std::vector<vk::UniqueFramebuffer> m_Framebuffers{};
 

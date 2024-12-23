@@ -11,6 +11,7 @@ namespace hyper
 		void Run();
 		~Application();
 
+		Renderer& GetRenderer() { return m_Renderer; }
 	private:
 		Spec m_Spec;
 

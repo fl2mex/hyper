@@ -3,10 +3,12 @@
 #pragma warning(push, 0) // Disable warnings from external libraries, mostly to shut intellisense up
 #pragma warning (disable: 26495) // Unitialised member warning code
 #pragma warning (disable: 4098) // MSVC warning to do with debug mode
+#pragma warning(disable : 4996) // Something wrong with a new version of the API changes using strcpy_s to use strcpy, flipping off msvc's alarms
+#define _CRT_SECURE_NO_WARNINGS // Shut up MSVC
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_structs.hpp> // Intellisense please shut up, it only whines about the structs file
 #include <GLFW/glfw3.h>
 #pragma warning (pop)
+#undef _CRT_SECURE_NO_WARNINGS
 
 #include <iostream>
 #include <fstream>
@@ -15,8 +17,8 @@
 #include <set>
 
 // Macros
-#define DEBUG_ON true
-#define DEBUG_OFF false
+constexpr bool DEBUG_ON = true;
+constexpr bool DEBUG_OFF = false;
 
 // My Spec
 namespace hyper

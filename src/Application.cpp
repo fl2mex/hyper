@@ -10,6 +10,12 @@ namespace hyper
 		}
 	}
 
+	static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
+	{
+		auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+		app->GetRenderer().m_FramebufferResized = true;
+	}
+
 	Application::Application(Spec _spec = {})
 		: m_Spec(_spec)
 	{
@@ -17,6 +23,8 @@ namespace hyper
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // GLFW doesn't need to set this for vulkan
 		m_Window = glfwCreateWindow(m_Spec.Width, m_Spec.Height, m_Spec.Title.c_str(), nullptr, nullptr);
 		glfwSetKeyCallback(m_Window, key_callback);
+		glfwSetWindowUserPointer(m_Window, this);
+		glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
 
 		m_Renderer.SetupRenderer(m_Spec, m_Window); // Can't use constructors because it needs to be in order
 	}

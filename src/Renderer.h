@@ -4,11 +4,27 @@
 
 namespace hyper
 {
-	struct SM
-	{ // Black magic, from dokipen3d on github
-		vk::SharingMode sharingMode;
-		uint32_t familyIndicesCount;
-		uint32_t* familyIndicesDataPtr;
+	struct Vertex {
+		glm::vec2 position;
+		glm::vec3 colour;
+
+		static vk::VertexInputBindingDescription getBindingDescription()
+		{
+			return vk::VertexInputBindingDescription{ 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
+		}
+		static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+		{
+			std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;
+			attributeDescriptions[0] = vk::VertexInputAttributeDescription{ 0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, position) };
+			attributeDescriptions[1] = vk::VertexInputAttributeDescription{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
+			return attributeDescriptions;
+		}
+	};
+
+	struct UniformBufferObject {
+		alignas(16) glm::mat4 model;
+		alignas(16) glm::mat4 view;
+		alignas(16) glm::mat4 proj;
 	};
 
 	class Renderer
@@ -19,13 +35,31 @@ namespace hyper
 		~Renderer();
 
 		bool m_FramebufferResized = false;
-		int bruhtesting = 0;
+
 	private:
+		std::vector<Vertex> vertices
+		{
+			{{-0.5f,-0.5f }, { 1.0f, 0.0f, 0.0f }},
+			{{ 0.5f,-0.5f }, { 0.0f, 1.0f, 0.0f }},
+			{{ 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }},
+			{{-0.5f, 0.5f }, { 1.0f, 1.0f, 1.0f }}
+		};
+		std::vector<uint16_t> indices
+		{
+			0, 1, 2, 2, 3, 0
+		};
+
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
+		void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
+		void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+
+		uint32_t currentFrame = 0;
+		double previousTime = 0.0;
+		uint32_t frameCount = 0;
 
 		Spec m_Spec;
-		GLFWwindow* m_Window;
+		GLFWwindow* m_Window{};
 
 		vk::UniqueInstance m_Instance{};
 
@@ -42,19 +76,30 @@ namespace hyper
 		vk::Format m_SwapchainImageFormat{};
 		vk::Extent2D m_SwapchainExtent{};
 		uint32_t m_SwapchainImageCount{};
-		SM m_SharingModeUtil;
 		
 		vk::UniqueSwapchainKHR m_Swapchain{};
 
 		std::vector<vk::Image> m_SwapchainImages{}; // Can this be turned unique as well?
 		std::vector<vk::UniqueImageView> m_ImageViews{};
-		std::vector<vk::UniqueFramebuffer> m_Framebuffers{};
 
-		vk::UniquePipelineLayout m_PipelineLayout{}; // Can this go out of scope?
-		vk::UniqueRenderPass m_RenderPass{};
-		vk::UniquePipeline m_Pipeline{};
+		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
+		vk::UniquePipelineLayout m_PipelineLayout{};
+		vk::UniquePipeline m_Pipeline{}; // Count your days, pipeline, VK_EXT_shader_object is replacing jobs like yours
 
-		vk::UniqueCommandPool m_CommandPoolUnique{};
+		vk::UniqueCommandPool m_CommandPool{};
+
+		vk::UniqueDescriptorPool m_DescriptorPool{};
+		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
+
+		vk::UniqueBuffer m_VertexBuffer;
+		vk::UniqueDeviceMemory m_VertexBufferMemory;
+		vk::UniqueBuffer m_IndexBuffer;
+		vk::UniqueDeviceMemory m_IndexBufferMemory;
+
+		std::vector<vk::UniqueBuffer> m_UniformBuffers;
+		std::vector<vk::UniqueDeviceMemory> m_UniformBuffersMemory;
+		std::vector<void*> m_UniformBuffersMapped;
+
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 
 		vk::UniqueFence m_InFlightFence{};

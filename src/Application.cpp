@@ -12,8 +12,7 @@ namespace hyper
 
 	static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 	{
-		auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-		app->GetRenderer().m_FramebufferResized = true;
+		reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->GetRenderer().m_FramebufferResized = true;
 	}
 
 	Application::Application(Spec _spec = {})

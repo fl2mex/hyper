@@ -6,19 +6,22 @@
 #pragma warning(disable : 4996) // Something wrong with a new version of the API changes using strcpy_s to use strcpy, flipping off msvc's alarms
 #define _CRT_SECURE_NO_WARNINGS // Shut up MSVC
 #include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
+#include <GLFW/glfw3.h> // From the pre-compiled win64 lib on their website
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
+#include <glm/gtc/matrix_transform.hpp>
 #pragma warning (pop)
 #undef _CRT_SECURE_NO_WARNINGS
 
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <cstring>
-#include <set>
+#include <iostream> // Used everywhere
+#include <fstream> // Used for reading files
+#include <iomanip> // Used for time formatting
+#include <chrono> // Used for timestamping logging
 
 // Macros
-constexpr bool DEBUG_ON = true;
-constexpr bool DEBUG_OFF = false;
+#define DEBUG_ON true;
+#define DEBUG_OFF false;
 
 // My Spec
 namespace hyper
@@ -26,6 +29,7 @@ namespace hyper
 	struct Spec
 	{ // Default options, just in case
 		bool Debug = DEBUG_ON;
+		bool InfoDebug = DEBUG_ON;
 		std::string Title = "App";
 		uint32_t Width = 1600, Height = 900;
 		uint32_t ApiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);

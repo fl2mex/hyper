@@ -7,16 +7,18 @@ namespace hyper
 	struct Vertex {
 		glm::vec2 position;
 		glm::vec3 colour;
+		glm::vec2 texCoord;
 
 		static vk::VertexInputBindingDescription getBindingDescription()
 		{
 			return vk::VertexInputBindingDescription{ 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
 		}
-		static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+		static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
 		{
-			std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;
+			std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions;
 			attributeDescriptions[0] = vk::VertexInputAttributeDescription{ 0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, position) };
 			attributeDescriptions[1] = vk::VertexInputAttributeDescription{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
+			attributeDescriptions[2] = vk::VertexInputAttributeDescription{ 2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord) };
 			return attributeDescriptions;
 		}
 	};
@@ -39,10 +41,10 @@ namespace hyper
 	private:
 		std::vector<Vertex> vertices
 		{
-			{{-0.5f,-0.5f }, { 1.0f, 0.0f, 0.0f }},
-			{{ 0.5f,-0.5f }, { 0.0f, 1.0f, 0.0f }},
-			{{ 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }},
-			{{-0.5f, 0.5f }, { 1.0f, 1.0f, 1.0f }}
+			{{-0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+			{{ 0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+			{{ 0.5f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+			{{-0.5f,  0.5f}, { 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 		};
 		std::vector<uint16_t> indices
 		{
@@ -51,8 +53,13 @@ namespace hyper
 
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
+		
 		void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 		void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+		
+		void CreateImage(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags imageUsage, vk::MemoryPropertyFlags properties,
+			vk::Image& image, vk::DeviceMemory& imageMemory);
+		void CopyImage(vk::Buffer srcBuffer, vk::Image dstImage, int width, int height);
 
 		uint32_t currentFrame = 0;
 		double previousTime = 0.0;
@@ -95,6 +102,12 @@ namespace hyper
 		vk::UniqueDeviceMemory m_VertexBufferMemory;
 		vk::UniqueBuffer m_IndexBuffer;
 		vk::UniqueDeviceMemory m_IndexBufferMemory;
+
+		vk::UniqueImage m_TextureImage;
+		uint32_t m_TextureWidth, m_TextureHeight;
+		vk::UniqueDeviceMemory m_TextureImageMemory;
+		vk::UniqueImageView m_TextureImageView;
+		vk::UniqueSampler m_Sampler;
 
 		std::vector<vk::UniqueBuffer> m_UniformBuffers;
 		std::vector<vk::UniqueDeviceMemory> m_UniformBuffersMemory;

@@ -33,7 +33,6 @@ namespace hyper
 		std::string Title = "App";
 		uint32_t Width = 1600, Height = 900;
 		uint32_t ApiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
-		std::string VertexShader = "res/shader/vertex.spv", FragmentShader = "res/shader/fragment.spv";
 	};
 }
 

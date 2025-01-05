@@ -7,7 +7,7 @@ namespace hyper
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 	{
-		uint32_t severity = Severity::Info; // You can't switch statement a bitwise check :(
+		Severity severity = Severity::Info; // You can't switch statement a bitwise check :(
 		if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
 			severity = Severity::Verbose;
 		}
@@ -36,7 +36,7 @@ namespace hyper
 		return oss.str();
 	}
 
-	void Logger::Log(std::string message, uint32_t severity) const
+	void Logger::Log(std::string message, Severity severity) const
 	{
 		if (m_Debug) // There was a semicolon hidden here, tripped me up for like 10min trying to figure out why my debug statements were running when debug was off
 		{

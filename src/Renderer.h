@@ -4,8 +4,9 @@
 
 namespace hyper
 {
-	struct Vertex {
-		glm::vec2 position;
+	struct Vertex
+	{
+		glm::vec3 position;
 		glm::vec3 colour;
 		glm::vec2 texCoord;
 
@@ -16,17 +17,18 @@ namespace hyper
 		static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
 		{
 			std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions;
-			attributeDescriptions[0] = vk::VertexInputAttributeDescription{ 0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, position) };
+			attributeDescriptions[0] = vk::VertexInputAttributeDescription{ 0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position) };
 			attributeDescriptions[1] = vk::VertexInputAttributeDescription{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
 			attributeDescriptions[2] = vk::VertexInputAttributeDescription{ 2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord) };
 			return attributeDescriptions;
 		}
 	};
 
-	struct UniformBufferObject {
-		alignas(16) glm::mat4 model;
-		alignas(16) glm::mat4 view;
-		alignas(16) glm::mat4 proj;
+	struct UniformBufferObject
+	{
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
 	};
 
 	class Renderer
@@ -41,14 +43,21 @@ namespace hyper
 	private:
 		std::vector<Vertex> vertices
 		{
-			{{-0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-			{{ 0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-			{{ 0.5f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-			{{-0.5f,  0.5f}, { 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+			{{-0.5f, -0.5f,  0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+			{{ 0.5f, -0.5f,  0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+			{{ 0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+			{{-0.5f,  0.5f,  0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+			{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+			{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 		};
+
 		std::vector<uint16_t> indices
 		{
-			0, 1, 2, 2, 3, 0
+			0, 1, 2, 2, 3, 0,
+			4, 5, 6, 6, 7, 4
 		};
 
 		void RecreateSwapchain();
@@ -108,6 +117,10 @@ namespace hyper
 		vk::UniqueDeviceMemory m_TextureImageMemory;
 		vk::UniqueImageView m_TextureImageView;
 		vk::UniqueSampler m_Sampler;
+
+		vk::UniqueImage m_DepthImage;
+		vk::UniqueDeviceMemory m_DepthImageMemory;
+		vk::UniqueImageView m_DepthImageView;
 
 		std::vector<vk::UniqueBuffer> m_UniformBuffers;
 		std::vector<vk::UniqueDeviceMemory> m_UniformBuffersMemory;

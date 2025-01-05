@@ -24,7 +24,7 @@ namespace hyper
 		bool IsDebug() { return m_Debug; }
 		bool IsInfoDebug() { return m_InfoDebug; }
 
-		void Log(std::string message, uint32_t severity = Severity::Setup) const;
+		void Log(std::string message, Severity severity = Severity::Setup) const;
 
 		// Thank you amengede on github for this bit
 		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> MakeDebugMessenger(vk::UniqueInstance& instance, vk::DispatchLoaderDynamic& dldi);

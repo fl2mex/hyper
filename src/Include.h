@@ -9,6 +9,7 @@
 #include <GLFW/glfw3.h> // From the pre-compiled win64 lib on their website
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
 #include <glm/gtc/matrix_transform.hpp>
 #pragma warning (pop)

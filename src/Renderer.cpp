@@ -88,7 +88,7 @@ namespace hyper
 		m_SwapchainImageCount = 2;
 		m_SwapchainImageFormat = vk::Format::eB8G8R8A8Unorm;
 		m_SwapchainExtent = vk::Extent2D{ m_Spec.Width, m_Spec.Height };
-		RecreateSwapchain();
+		RecreateSwapchain(); // Also recreates image views, and depth buffer/stencil
 
 		// Shaders
 		std::vector<char> vertShaderCode = readFile("res/shader/vertex.spv");
@@ -126,6 +126,10 @@ namespace hyper
 		vk::PipelineRasterizationStateCreateInfo rasterizer{ {}, /*depthClamp*/ false, /*rasterizeDiscard*/ false, vk::PolygonMode::eFill,
 			/*cullMode*/ vk::CullModeFlagBits::eBack , /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f };
 		vk::PipelineMultisampleStateCreateInfo multisampling{ {}, vk::SampleCountFlagBits::e1, false, 1.0 };
+
+		vk::PipelineDepthStencilStateCreateInfo depthStencil{ {}, /*depthTest*/ VK_TRUE, VK_TRUE, vk::CompareOp::eLess,
+			VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f };
+
 		vk::PipelineColorBlendAttachmentState colorBlendAttachment{ {}, /*srcCol*/ vk::BlendFactor::eOne, /*dstCol*/ vk::BlendFactor::eZero,
 			/*colBlend*/ vk::BlendOp::eAdd, /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero, /*alphaBlend*/ vk::BlendOp::eAdd,
 			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
@@ -149,16 +153,17 @@ namespace hyper
 		// Graphics pipeline creation
 		vk::DynamicState dynamicStates[2]{ vk::DynamicState::eViewport, vk::DynamicState::eScissor };
 		vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{ {}, 2, dynamicStates };
-		vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ 0, 1, &m_SwapchainImageFormat };
+		vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat }; // depthAttachmentFormat bad placing
 
 		vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr, &viewportState,
-			&rasterizer, &multisampling, nullptr, &colorBlending, &dynamicStateCreateInfo, *m_PipelineLayout, nullptr, 0, nullptr, 0, &pipelineRenderingCreateInfo };
+			&rasterizer, &multisampling, &depthStencil, &colorBlending, &dynamicStateCreateInfo, *m_PipelineLayout, nullptr, 0, nullptr, 0, &pipelineRenderingCreateInfo };
 		m_Pipeline = m_Device->createGraphicsPipelineUnique({}, graphicsPipelineCreateInfo).value; // Why is this the only one that requires .value?
 
 		// Command pool
 		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
 			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
+		// Need to replace this stuff with a more unique handle-friendly way instead of the c-style header
 		// Staging buffer
 		vk::Buffer stagingBuffer;
 		vk::DeviceMemory stagingBufferMemory;
@@ -253,7 +258,8 @@ namespace hyper
 			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
-				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo } };
+				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
+
 			m_Device->updateDescriptorSets(descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 		}
 
@@ -338,6 +344,11 @@ namespace hyper
 		m_TextureImageMemory.get() = VK_NULL_HANDLE;
 		m_TextureImage.get() = VK_NULL_HANDLE;
 
+		m_Device->destroyImage(m_DepthImage.get());	
+		m_Device->freeMemory(m_DepthImageMemory.get());
+		m_DepthImageMemory.get() = VK_NULL_HANDLE;
+		m_DepthImage.get() = VK_NULL_HANDLE;
+
 		Logger::logger->Log("Goodbye!");
 	}
 
@@ -355,10 +366,17 @@ namespace hyper
 
 		m_SwapchainImages.clear();
 		m_ImageViews.clear();
+
+		m_Device->destroy(m_DepthImage.get());
+		m_Device->free(m_DepthImageMemory.get());
+		m_Device->destroy(m_DepthImageView.get());
+		m_DepthImage.get() = VK_NULL_HANDLE;
+		m_DepthImageMemory.get() = VK_NULL_HANDLE;
+		m_DepthImageView.get() = VK_NULL_HANDLE;
+
 		m_Device->destroySwapchainKHR(m_Swapchain.get());
 		m_Swapchain.get() = VK_NULL_HANDLE;
 
-		// Reset SM
 		std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_PhysicalDevice.getQueueFamilyProperties();
 
 		size_t graphicsQueueFamilyIndex = std::distance(queueFamilyProperties.begin(), std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
@@ -400,6 +418,29 @@ namespace hyper
 				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
 			m_ImageViews.push_back(m_Device->createImageViewUnique(imageViewCreateInfo));
 		}
+
+		// Recreate depth image
+		vk::Format depthFormat = vk::Format::eD32Sfloat;
+		std::vector<vk::Format> candidates{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint };
+		vk::ImageTiling tiling = vk::ImageTiling::eOptimal;
+		vk::FormatFeatureFlags features = vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+		for (vk::Format format : candidates) {
+			vk::FormatProperties props = m_PhysicalDevice.getFormatProperties(format);
+			if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features) {
+				depthFormat = format;
+				break;
+			}
+			else if (tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features) {
+				depthFormat = format;
+				break;
+			}
+		}
+
+		CreateImage(m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment,
+			vk::MemoryPropertyFlagBits::eDeviceLocal, m_DepthImage.get(), m_DepthImageMemory.get());
+		vk::ImageViewCreateInfo depthImageViewCreateInfo{ {}, m_DepthImage.get(), vk::ImageViewType::e2D, depthFormat, {},
+			{ vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1 } };
+		m_DepthImageView = m_Device->createImageViewUnique(depthImageViewCreateInfo);
 	}
 
 	void Renderer::RecreateCommandBuffers()
@@ -419,7 +460,7 @@ namespace hyper
 		vk::DeviceSize offsets[] = { 0 };
 
 		// Background colour
-		vk::ClearValue clearValues{ { 1.0f, 0.5f, 0.3f, 1.0f } };
+		std::vector<vk::ClearValue> clearValues{ {{ 1.0f, 0.5f, 0.3f, 1.0f }}, {{ 1.0f, 0 }} };
 
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
@@ -432,9 +473,12 @@ namespace hyper
 				m_SwapchainImages[i], vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
 			// Rendering info
-			const vk::RenderingAttachmentInfo colorAttachmentInfo{ m_ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR,
-				{}, {},{}, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues };
-			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, 1, &colorAttachmentInfo };
+			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
+				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
+			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
+					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
+
+			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, attachments, &depthAttachment };
 
 			// Actual command buffers
 			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{});
@@ -472,7 +516,10 @@ namespace hyper
 		uint32_t memoryTypeIndex = 0;
 		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
 			if ((memRequirements.memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			{
 				memoryTypeIndex = i;
+				break;
+			}
 
 		vk::MemoryAllocateInfo memoryAllocateInfo{ memRequirements.size, memoryTypeIndex };
 		bufferMemory = m_Device->allocateMemory(memoryAllocateInfo);
@@ -504,8 +551,7 @@ namespace hyper
 		vk::Image& image, vk::DeviceMemory& imageMemory)
 	{
 		vk::ImageCreateInfo imageInfo{ {}, vk::ImageType::e2D, format, { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 },
-			1, 1, vk::SampleCountFlagBits::e1, tiling, imageUsage,
-			vk::SharingMode::eExclusive };
+			1, 1, vk::SampleCountFlagBits::e1, tiling, imageUsage, vk::SharingMode::eExclusive };
 		image = m_Device->createImage(imageInfo);
 
 		vk::MemoryRequirements memRequirements = m_Device->getImageMemoryRequirements(image);
@@ -513,7 +559,10 @@ namespace hyper
 		uint32_t memoryTypeIndex = 0;
 		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
 			if ((memRequirements.memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			{
 				memoryTypeIndex = i;
+				break;
+			}
 
 		vk::MemoryAllocateInfo memoryAllocateInfo{ memRequirements.size, memoryTypeIndex };
 		imageMemory = m_Device->allocateMemory(memoryAllocateInfo);

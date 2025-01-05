@@ -3,9 +3,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h> // Image loading lib from nothings
 
+
 namespace hyper
 {
-	void hyper::Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
+	void Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
 	{
 		m_Spec = _spec;
 		m_Window = _window;
@@ -269,7 +270,7 @@ namespace hyper
 		RecreateCommandBuffers();
 	}
 
-	void hyper::Renderer::DrawFrame()
+	void Renderer::DrawFrame()
 	{
 		// FPS counter
 		double currentTime = glfwGetTime();
@@ -317,7 +318,7 @@ namespace hyper
 		currentFrame = (currentFrame + 1) % m_SwapchainImageCount;
 	}
 
-	hyper::Renderer::~Renderer()
+	Renderer::~Renderer()	
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
@@ -325,7 +326,7 @@ namespace hyper
 		m_Device->freeMemory(m_VertexBufferMemory.get());
 		m_VertexBufferMemory.get() = VK_NULL_HANDLE;
 		m_VertexBuffer.get() = VK_NULL_HANDLE;
-
+		
 		m_Device->destroyBuffer(m_IndexBuffer.get());
 		m_Device->freeMemory(m_IndexBufferMemory.get());
 		m_IndexBufferMemory.get() = VK_NULL_HANDLE;

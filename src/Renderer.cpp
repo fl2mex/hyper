@@ -1,8 +1,9 @@
 #include "Renderer.h"
 
+#pragma warning(push, 0)
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h> // Image loading lib from nothings
-
+#pragma warning(pop)
 
 namespace hyper
 {
@@ -20,7 +21,7 @@ namespace hyper
 		if (m_Spec.Debug)
 		{
 			Logger::logger->Log("Debug Enabled");
-			glfwExtensionsVector.push_back("VK_EXT_debug_utils");
+			glfwExtensionsVector.push_back(vk::EXTDebugUtilsExtensionName);
 			layers.push_back("VK_LAYER_KHRONOS_validation");
 		}
 		Logger::logger->Log("Extensions used: "); for (uint32_t i = 0; i < glfwExtensionCount; i++) Logger::logger->Log(" - " + std::string(glfwExtensions[i]));
@@ -71,13 +72,14 @@ namespace hyper
 			queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
 
 		// Logical device
-		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName };
+		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName, vk::EXTShaderObjectExtensionName };
 		Logger::logger->Log("Device extensions used: "); for (auto& e : deviceExtensions) Logger::logger->Log(" - " + std::string(e));
-
+		
 		vk::PhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
-
-		vk::PhysicalDeviceDynamicRenderingFeatures dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeatures(1);
+		vk::PhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1);
+		vk::PhysicalDeviceDynamicRenderingFeatures dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeatures(1, &shaderObjectFeatures);
+		
 		m_Device = m_PhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()),
 			queueCreateInfos.data(), 0u, nullptr, static_cast<uint32_t>(deviceExtensions.size()), deviceExtensions.data(), &deviceFeatures, &dynamicFeatures));
 
@@ -91,26 +93,6 @@ namespace hyper
 		m_SwapchainExtent = vk::Extent2D{ m_Spec.Width, m_Spec.Height };
 		RecreateSwapchain(); // Also recreates image views, and depth buffer/stencil
 
-		// Shaders
-		std::vector<char> vertShaderCode = readFile("res/shader/vertex.spv");
-		vk::ShaderModuleCreateInfo vertShaderCreateInfo = vk::ShaderModuleCreateInfo{ {}, vertShaderCode.size(),
-			reinterpret_cast<const uint32_t*>(vertShaderCode.data()) };
-		vk::UniqueShaderModule vertexShaderModule = m_Device->createShaderModuleUnique(vertShaderCreateInfo);
-
-		std::vector<char> fragShaderCode = readFile("res/shader/fragment.spv");
-		vk::ShaderModuleCreateInfo fragShaderCreateInfo = vk::ShaderModuleCreateInfo{ {}, fragShaderCode.size(),
-			reinterpret_cast<const uint32_t*>(fragShaderCode.data()) };
-		vk::UniqueShaderModule fragmentShaderModule = m_Device->createShaderModuleUnique(fragShaderCreateInfo);
-
-		std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages{ { {}, vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main" },
-			{ {}, vk::ShaderStageFlagBits::eFragment, *fragmentShaderModule, "main" } };
-
-		// Vertex input
-		auto bindingDescription = Vertex::getBindingDescription();
-		auto attributeDescriptions = Vertex::getAttributeDescriptions();
-		vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {}, 1, &bindingDescription,
-			static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data() };
-
 		// Descriptor set layout
 		vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex };
 		vk::DescriptorSetLayoutBinding samplerLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment };
@@ -119,23 +101,16 @@ namespace hyper
 
 		m_DescriptorSetLayout = m_Device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
-		// Pipeline creation
-		vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ {}, vk::PrimitiveTopology::eTriangleList, false };
-
-		vk::PipelineViewportStateCreateInfo viewportState{ {}, 1, nullptr, 1, nullptr };
-
-		vk::PipelineRasterizationStateCreateInfo rasterizer{ {}, /*depthClamp*/ false, /*rasterizeDiscard*/ false, vk::PolygonMode::eFill,
-			/*cullMode*/ vk::CullModeFlagBits::eBack , /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f };
-		vk::PipelineMultisampleStateCreateInfo multisampling{ {}, vk::SampleCountFlagBits::e1, false, 1.0 };
-
-		vk::PipelineDepthStencilStateCreateInfo depthStencil{ {}, /*depthTest*/ VK_TRUE, VK_TRUE, vk::CompareOp::eLess,
-			VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f };
-
-		vk::PipelineColorBlendAttachmentState colorBlendAttachment{ {}, /*srcCol*/ vk::BlendFactor::eOne, /*dstCol*/ vk::BlendFactor::eZero,
-			/*colBlend*/ vk::BlendOp::eAdd, /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero, /*alphaBlend*/ vk::BlendOp::eAdd,
-			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
-		vk::PipelineColorBlendStateCreateInfo colorBlending{ {}, /*logicOpEnable=*/false,
-			vk::LogicOp::eCopy, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment };
+		// Shaders
+		std::vector<char> vertShaderCode = readFile("res/shader/vertex.spv");
+		std::vector<char> fragShaderCode = readFile("res/shader/fragment.spv");
+		std::vector<vk::ShaderCreateInfoEXT> shaderInfos{
+			{ {}, vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment, vk::ShaderCodeTypeEXT::eSpirv,
+			vertShaderCode.size(), vertShaderCode.data(), "main", 1, &m_DescriptorSetLayout.get() },
+			{ {}, vk::ShaderStageFlagBits::eFragment, vk::ShaderStageFlagBits{0}, vk::ShaderCodeTypeEXT::eSpirv,
+			fragShaderCode.size(), fragShaderCode.data(), "main", 1,&m_DescriptorSetLayout.get() } };
+		
+		m_Shaders = m_Device->createShadersEXTUnique(shaderInfos, nullptr, m_DLDI).value;
 
 		// Pipeline layout
 		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{ {}, 1, &m_DescriptorSetLayout.get() };
@@ -145,20 +120,10 @@ namespace hyper
 			vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
 		vk::AttachmentReference colourAttachmentRef{ 0, vk::ImageLayout::eColorAttachmentOptimal };
 		vk::SubpassDescription subpass{ {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
-
 		// Fence and semaphores
 		m_InFlightFence = m_Device->createFenceUnique({ vk::FenceCreateFlagBits::eSignaled });
 		m_ImageAvailableSemaphore = m_Device->createSemaphoreUnique({});
 		m_RenderFinishedSemaphore = m_Device->createSemaphoreUnique({});
-
-		// Graphics pipeline creation
-		vk::DynamicState dynamicStates[2]{ vk::DynamicState::eViewport, vk::DynamicState::eScissor };
-		vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{ {}, 2, dynamicStates };
-		vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat }; // depthAttachmentFormat bad placing
-
-		vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(), &vertexInputInfo, &inputAssembly, nullptr, &viewportState,
-			&rasterizer, &multisampling, &depthStencil, &colorBlending, &dynamicStateCreateInfo, *m_PipelineLayout, nullptr, 0, nullptr, 0, &pipelineRenderingCreateInfo };
-		m_Pipeline = m_Device->createGraphicsPipelineUnique({}, graphicsPipelineCreateInfo).value; // Why is this the only one that requires .value?
 
 		// Command pool
 		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
@@ -486,8 +451,35 @@ namespace hyper
 			m_CommandBuffers[i]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput,
 				{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
 
+			// Get ready for the motherload of boilerplate from using ShaderEXT's
+			std::vector<vk::VertexInputBindingDescription2EXT> bindings{ Vertex::getBindingDescription() };
+			m_CommandBuffers[i]->setVertexInputEXT(bindings.size(), bindings.data(),
+				Vertex::getAttributeDescriptions().size(), Vertex::getAttributeDescriptions().data(), m_DLDI);
+			m_CommandBuffers[i]->setViewportWithCount(viewport);
+			m_CommandBuffers[i]->setScissorWithCount(scissor);
+			m_CommandBuffers[i]->setRasterizerDiscardEnable(0);
+			m_CommandBuffers[i]->setPolygonModeEXT(vk::PolygonMode::eFill, m_DLDI);
+			m_CommandBuffers[i]->setRasterizationSamplesEXT(vk::SampleCountFlagBits::e1, m_DLDI);
+			m_CommandBuffers[i]->setCullMode(vk::CullModeFlagBits::eNone);
+			m_CommandBuffers[i]->setFrontFace(vk::FrontFace::eCounterClockwise);
+			m_CommandBuffers[i]->setDepthTestEnable(1);
+			m_CommandBuffers[i]->setDepthWriteEnable(1);
+			m_CommandBuffers[i]->setDepthCompareOp(vk::CompareOp::eLess);
+			std::vector<vk::Bool32> colorBlends{ 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ };
+			m_CommandBuffers[i]->setColorBlendEnableEXT(0, colorBlends.size(), colorBlends.data(), m_DLDI);
+			m_CommandBuffers[i]->setColorBlendEquationEXT(0, { { vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd } }, m_DLDI);
+			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
+				| vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA, m_DLDI);
+			m_CommandBuffers[i]->setSampleMaskEXT(vk::SampleCountFlagBits::e1, 1, m_DLDI);
+			m_CommandBuffers[i]->setAlphaToCoverageEnableEXT(0, m_DLDI);
+			m_CommandBuffers[i]->setDepthBiasEnable(0);
+			m_CommandBuffers[i]->setStencilTestEnable(0);
+			m_CommandBuffers[i]->setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
+			m_CommandBuffers[i]->setPrimitiveRestartEnable(0);
+
 			m_CommandBuffers[i]->beginRendering(&renderingInfo);
-			m_CommandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *m_Pipeline);
+			vk::ShaderStageFlagBits stages[2]{ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment };
+			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
 			m_CommandBuffers[i]->bindIndexBuffer(m_IndexBuffer.get(), 0, vk::IndexType::eUint16);

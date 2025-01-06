@@ -10,16 +10,16 @@ namespace hyper
 		glm::vec3 colour;
 		glm::vec2 texCoord;
 
-		static vk::VertexInputBindingDescription getBindingDescription()
+		static vk::VertexInputBindingDescription2EXT getBindingDescription()
 		{
-			return vk::VertexInputBindingDescription{ 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
+			return vk::VertexInputBindingDescription2EXT{ 0, sizeof(Vertex), vk::VertexInputRate::eVertex, 1 };
 		}
-		static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
+		static std::array<vk::VertexInputAttributeDescription2EXT, 3> getAttributeDescriptions()
 		{
-			std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions;
-			attributeDescriptions[0] = vk::VertexInputAttributeDescription{ 0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position) };
-			attributeDescriptions[1] = vk::VertexInputAttributeDescription{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
-			attributeDescriptions[2] = vk::VertexInputAttributeDescription{ 2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord) };
+			std::array<vk::VertexInputAttributeDescription2EXT, 3> attributeDescriptions;
+			attributeDescriptions[0] = vk::VertexInputAttributeDescription2EXT{ 0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position) };
+			attributeDescriptions[1] = vk::VertexInputAttributeDescription2EXT{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
+			attributeDescriptions[2] = vk::VertexInputAttributeDescription2EXT{ 2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord) };
 			return attributeDescriptions;
 		}
 	};
@@ -101,6 +101,8 @@ namespace hyper
 		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
 		vk::UniquePipelineLayout m_PipelineLayout{};
 		vk::UniquePipeline m_Pipeline{}; // Count your days, pipeline, VK_EXT_shader_object is replacing jobs like yours
+
+		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::DispatchLoaderDynamic>>  m_Shaders;
 
 		vk::UniqueCommandPool m_CommandPool{};
 

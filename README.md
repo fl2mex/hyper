@@ -4,17 +4,17 @@ I named it hyper because I want to make a fast-ish engine (probably not how it'l
 
 # Progress
 I want to completely understand how the whole vulkan graphics pipeline works, so I will not be using any tools such as [vk-bootstrap]. <br>
-| <ul><li>- [x] Graphics Pipeline        | <ul><li>- [ ] Shader Setup            | <ul><li>- [ ] Buffer Setup                    | <ul><li>- [ ] Extras             |
-|----------------------------------------|---------------------------------------|-----------------------------------------------|----------------------------------|
-| <ul><li>- [x] Window Creation          | <ul><li>- [x] Shader Object Creation  | <ul><li>- [x] Framebuffer Setup               | <ul><li>- [ ] Texture Loading    |
-| <ul><li>- [x] Instance Creation        | <ul><li>- [ ] Compute Shader Pipeline | <ul><li>- [x] Command Buffer Setup            | <ul><li>- [ ] GLTF Loading       |
-| <ul><li>- [x] Debug Messenger Creation |                                       | <ul><li>- [ ] Vertex & Index Buffer Creation  | <ul><li>- [ ] Mesh System        |
-| <ul><li>- [x] Surface Creation         |                                       | <ul><li>- [ ] Descriptor Layout/Pool Creation | <ul><li>- [ ] Asset System       |
-| <ul><li>- [x] Physical Device Picked   |                                       |                                               | <ul><li>- [ ] Multithreading     |
-| <ul><li>- [x] Logical Device Creation  |                                       |                                               | <ul><li>- [ ] Raytracing (maybe) |
-| <ul><li>- [x] Queue Setup              |
-| <ul><li>- [x] Swapchain Setup          |
-
+| <ul><li>- [x] Vulkan Initialisation    | <ul><li>- [ ] The Interesting Stuff    | <ul><li>- [x] Buffer Setup                    | <ul><li>- [ ] Extras                |
+|----------------------------------------|----------------------------------------|-----------------------------------------------|-------------------------------------|
+| <ul><li>- [x] Window Creation          | <ul><li>- [x] ShaderEXT Creation       | <ul><li>- [x] Framebuffer Setup               | <ul><li>- [ ] Asset System          |
+| <ul><li>- [x] Instance Creation        | <ul><li>- [x] Vertex + Fragment Shaders| <ul><li>- [x] Command Buffer Setup            | <ul><li>- [ ] Multithreading        |
+| <ul><li>- [x] Debug Messenger Creation | <ul><li>- [ ] Compute Shaders          | <ul><li>- [x] Vertex & Index Buffer Creation  | <ul><li>- [ ] Mipmaps               |
+| <ul><li>- [x] Surface Creation         | <ul><li>- [x] Eradication of Pipelines | <ul><li>- [x] Descriptor Layout/Pool Creation | <ul><li>- [ ] Multiple Shader Setup | 
+| <ul><li>- [x] Physical Device Picked   | <ul><li>- [ ] ImGUI Implementation     |                                               | <ul><li>- [ ] Post-Processing       |
+| <ul><li>- [x] Logical Device Creation  | <ul><li>- [x] Texture Loading          |                                               | <ul><li>- [ ] Raytracing (maybe)    |
+| <ul><li>- [x] Queue Setup              | <ul><li>- [ ] GLTF Loading             |                                               | <ul><li>- [ ] Mesh Shaders (maybe)  |
+| <ul><li>- [x] Swapchain Setup          | <ul><li>- [ ] Mesh System              |                                               | <ul><li>- [ ] Better Synchronisation|
+|                                        | <ul><li>- [ ] Instancing
 # Tools used
 I am using: <br>
 * [GLFW] for window creation <br>

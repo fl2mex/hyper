@@ -11,7 +11,7 @@ namespace hyper
 	class Application
 	{
 	public:
-		Application(Spec _spec);
+		Application(Spec _spec = {});
 		void Run();
 		~Application();
 

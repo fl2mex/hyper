@@ -74,9 +74,10 @@ namespace hyper
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
 		
+		// Eventually want to move these into a class and file
 		void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 		void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
-		
+		// Same with image, texture, mesh
 		void CreateImage(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags imageUsage, vk::MemoryPropertyFlags properties,
 			vk::Image& image, vk::DeviceMemory& imageMemory);
 		void CopyImage(vk::Buffer srcBuffer, vk::Image dstImage, int width, int height);
@@ -114,9 +115,8 @@ namespace hyper
 
 		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
 		vk::UniquePipelineLayout m_PipelineLayout{};
-		vk::UniquePipeline m_Pipeline{}; // Count your days, pipeline, VK_EXT_shader_object is replacing jobs like yours
 
-		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::DispatchLoaderDynamic>>  m_Shaders;
+		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::DispatchLoaderDynamic>> m_Shaders;
 
 		vk::UniqueCommandPool m_CommandPool{};
 
@@ -129,7 +129,7 @@ namespace hyper
 		vk::UniqueDeviceMemory m_IndexBufferMemory;
 
 		vk::UniqueImage m_TextureImage;
-		uint32_t m_TextureWidth, m_TextureHeight;
+		uint32_t m_TextureWidth{}, m_TextureHeight{};
 		vk::UniqueDeviceMemory m_TextureImageMemory;
 		vk::UniqueImageView m_TextureImageView;
 		vk::UniqueSampler m_Sampler;

@@ -292,8 +292,8 @@ namespace hyper
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
 		m_Device->destroyBuffer(m_VertexBuffer.get()); // Why do I need to explicitly do this? They're unique handles
-		m_Device->freeMemory(m_VertexBufferMemory.get());
-		m_VertexBufferMemory.get() = VK_NULL_HANDLE;
+		m_Device->freeMemory(m_VertexBufferMemory.get()); // Probably 2nd in the list of things to fix
+		m_VertexBufferMemory.get() = VK_NULL_HANDLE; // In a perfect world, none of this would be here
 		m_VertexBuffer.get() = VK_NULL_HANDLE;
 		
 		m_Device->destroyBuffer(m_IndexBuffer.get());

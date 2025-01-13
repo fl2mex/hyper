@@ -15,7 +15,7 @@ namespace hyper
 		reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->GetRenderer().m_FramebufferResized = true;
 	}
 
-	Application::Application(Spec _spec = {})
+	Application::Application(Spec _spec)
 		: m_Spec(_spec)
 	{
 		glfwInit();
@@ -33,7 +33,7 @@ namespace hyper
 		while (!glfwWindowShouldClose(m_Window))
 		{
 			glfwPollEvents();
-			m_Renderer.DrawFrame();
+			m_Renderer.DrawFrame(); // Can add more things later, like audio :)
 		}
 	}
 

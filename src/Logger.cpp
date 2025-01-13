@@ -1,7 +1,7 @@
 #include "Logger.h"
 
-#include <iomanip> // Used for time formatting
-#include <chrono> // Used for timestamping logging
+#include <iomanip>
+#include <chrono>
 
 namespace hyper
 {
@@ -28,8 +28,8 @@ namespace hyper
 	}
 
 	std::string Logger::getCurrentTimestamp() const
-	{
-		auto now = std::chrono::system_clock::now();
+	{ // This stuff is re-allocated a lot, I wonder if I should make some static or smth
+		auto now = std::chrono::system_clock::now(); // TBH best case scenario the logger shouldn't be called often ;^)
 		std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
 		struct tm* timeInfo = localtime(&now_time_t);
 		auto duration = now.time_since_epoch();

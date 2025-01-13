@@ -1,9 +1,9 @@
 #include "Renderer.h"
 
-#pragma warning(push, 0)
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h> // Image loading lib from nothings
-#pragma warning(pop)
+#include <stb_image.h>
+#define VMA_IMPLEMENTATION
+#include <vma/vk_mem_alloc.h>
 
 namespace hyper
 {
@@ -87,6 +87,10 @@ namespace hyper
 		m_DeviceQueue = m_Device->getQueue(static_cast<uint32_t>(graphicsQueueFamilyIndex), 0);
 		m_PresentQueue = m_Device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
 
+		// VMA Allocator
+		VmaAllocatorCreateInfo allocatorInfo{ {}, m_PhysicalDevice, m_Device.get(), {}, {}, {}, {}, {}, m_Instance.get(), m_Spec.ApiVersion };
+		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+
 		// Swapchain
 		m_SwapchainImageCount = 2;
 		m_SwapchainImageFormat = vk::Format::eB8G8R8A8Unorm;
@@ -102,8 +106,8 @@ namespace hyper
 		m_DescriptorSetLayout = m_Device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
 		// Shaders
-		std::vector<char> vertShaderCode = readFile("res/shader/vertex.spv");
-		std::vector<char> fragShaderCode = readFile("res/shader/fragment.spv");
+		std::vector<char> vertShaderCode = readFile("res/shader/shader.vert.spv");
+		std::vector<char> fragShaderCode = readFile("res/shader/shader.frag.spv");
 		std::vector<vk::ShaderCreateInfoEXT> shaderInfos{
 			{ {}, vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment, vk::ShaderCodeTypeEXT::eSpirv,
 			vertShaderCode.size(), vertShaderCode.data(), "main", 1, &m_DescriptorSetLayout.get() },
@@ -314,6 +318,8 @@ namespace hyper
 		m_Device->freeMemory(m_DepthImageMemory.get());
 		m_DepthImageMemory.get() = VK_NULL_HANDLE;
 		m_DepthImage.get() = VK_NULL_HANDLE;
+
+		vmaDestroyAllocator(m_Allocator);
 
 		Logger::logger->Log("Goodbye!");
 	}

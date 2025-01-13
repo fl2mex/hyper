@@ -1,5 +1,8 @@
 #include "Logger.h"
 
+#include <iomanip> // Used for time formatting
+#include <chrono> // Used for timestamping logging
+
 namespace hyper
 {
 	Logger* Logger::logger; // Do not re-declare loggers, it is in big boi space, scary

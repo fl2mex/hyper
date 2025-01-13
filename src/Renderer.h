@@ -1,4 +1,15 @@
 #pragma once
+#define _CRT_SECURE_NO_WARNINGS // Me when MSVC-only problem that only affects vulkan versions
+#include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
+#include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
+#undef _CRT_SECURE_NO_WARNINGS	// and GLFW probably makes some sort of vulkan call, so it's included here too :))))))))))))
+#include <vma/vk_mem_alloc.h>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "Include.h"
 #include "Logger.h"
 
@@ -86,9 +97,12 @@ namespace hyper
 
 		vk::PhysicalDevice m_PhysicalDevice{};
 		vk::UniqueDevice m_Device{};
+		
+		VmaAllocator m_Allocator;
+
 		vk::Queue m_DeviceQueue{};
 		vk::Queue m_PresentQueue{};
-		
+
 		vk::Format m_SwapchainImageFormat{};
 		vk::Extent2D m_SwapchainExtent{};
 		uint32_t m_SwapchainImageCount{};

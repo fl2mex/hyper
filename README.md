@@ -10,8 +10,8 @@ I want to completely understand how the whole vulkan graphics pipeline works, so
 | <ul><li>- [x] Instance Creation        | <ul><li>- [x] Vertex + Fragment Shaders| <ul><li>- [x] Command Buffer Setup            | <ul><li>- [ ] Multithreading        |
 | <ul><li>- [x] Debug Messenger Creation | <ul><li>- [ ] Compute Shaders          | <ul><li>- [x] Vertex & Index Buffer Creation  | <ul><li>- [ ] Mipmaps               |
 | <ul><li>- [x] Surface Creation         | <ul><li>- [x] Eradication of Pipelines | <ul><li>- [x] Descriptor Layout/Pool Creation | <ul><li>- [ ] Multiple Shader Setup | 
-| <ul><li>- [x] Physical Device Picked   | <ul><li>- [ ] ImGUI Implementation     |                                               | <ul><li>- [ ] Post-Processing       |
-| <ul><li>- [x] Logical Device Creation  | <ul><li>- [x] Texture Loading          |                                               | <ul><li>- [ ] Raytracing (maybe)    |
+| <ul><li>- [x] Physical Device Picked   | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] VMA Implementation              | <ul><li>- [ ] Post-Processing       |
+| <ul><li>- [x] Logical Device Creation  | <ul><li>- [x] Texture Loading          | <ul><li>- [ ] Buffer Class                    | <ul><li>- [ ] Raytracing (maybe)    |
 | <ul><li>- [x] Queue Setup              | <ul><li>- [ ] GLTF Loading             |                                               | <ul><li>- [ ] Mesh Shaders (maybe)  |
 | <ul><li>- [x] Swapchain Setup          | <ul><li>- [ ] Mesh System              |                                               | <ul><li>- [ ] Better Synchronisation|
 |                                        | <ul><li>- [ ] Instancing

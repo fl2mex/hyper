@@ -5,6 +5,8 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
+#include "File.h"
+
 namespace hyper
 {
 	void Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
@@ -34,7 +36,7 @@ namespace hyper
 		// DLDI and debug messenger
 		if (m_Spec.Debug)
 		{
-			m_DLDI = vk::DispatchLoaderDynamic(*m_Instance, vkGetInstanceProcAddr);
+			m_DLDI = vk::detail::DispatchLoaderDynamic(*m_Instance, vkGetInstanceProcAddr);
 			m_DebugMessenger = Logger::logger->MakeDebugMessenger(m_Instance, m_DLDI);
 		}
 
@@ -93,6 +95,7 @@ namespace hyper
 
 		// Swapchain
 		m_SwapchainImageCount = 2;
+		Logger::logger->Log("Using " + std::to_string(m_SwapchainImageCount) + " frames in flight");
 		m_SwapchainImageFormat = vk::Format::eB8G8R8A8Unorm;
 		m_SwapchainExtent = vk::Extent2D{ m_Spec.Width, m_Spec.Height };
 		RecreateSwapchain(); // Also recreates image views, and depth buffer/stencil
@@ -101,7 +104,7 @@ namespace hyper
 		vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex };
 		vk::DescriptorSetLayoutBinding samplerLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment };
 		std::array<vk::DescriptorSetLayoutBinding, 2> bindings{ uboLayoutBinding, samplerLayoutBinding };
-		vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{ {}, bindings.size(), bindings.data() };
+		vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{ {}, static_cast<uint32_t>(bindings.size()), bindings.data() };
 
 		m_DescriptorSetLayout = m_Device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
@@ -141,7 +144,7 @@ namespace hyper
 		// Texture
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load("res/texture/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		vk::DeviceSize imageSize = texWidth * texHeight * 4;
+		vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
 		CreateBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 			stagingBuffer, stagingBufferMemory);
 		void* imageData;
@@ -230,7 +233,7 @@ namespace hyper
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
 
-			m_Device->updateDescriptorSets(descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
 
 		// Command buffers
@@ -258,8 +261,8 @@ namespace hyper
 			RecreateCommandBuffers();
 		}
 
-		m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX);
-		m_Device->resetFences(1, &m_InFlightFence.get());
+		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
+		static_cast<void>(m_Device->resetFences(1, &m_InFlightFence.get()));
 
 		// Get next image
 		vk::ResultValue<uint32_t> imageIndex = m_Device->acquireNextImageKHR(m_Swapchain.get(), std::numeric_limits<uint64_t>::max(),
@@ -283,7 +286,7 @@ namespace hyper
 		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, 1, &m_CommandBuffers[imageIndex.value].get(), 1,
 			&m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
 
-		m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.get(), &imageIndex.value });
+		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.get(), &imageIndex.value }));
 		currentFrame = (currentFrame + 1) % m_SwapchainImageCount;
 	}
 
@@ -459,8 +462,8 @@ namespace hyper
 
 			// Get ready for the motherload of boilerplate from using ShaderEXT's
 			std::vector<vk::VertexInputBindingDescription2EXT> bindings{ Vertex::getBindingDescription() };
-			m_CommandBuffers[i]->setVertexInputEXT(bindings.size(), bindings.data(),
-				Vertex::getAttributeDescriptions().size(), Vertex::getAttributeDescriptions().data(), m_DLDI);
+			m_CommandBuffers[i]->setVertexInputEXT(static_cast<uint32_t>(bindings.size()), bindings.data(),
+				static_cast<uint32_t>(Vertex::getAttributeDescriptions().size()), Vertex::getAttributeDescriptions().data(), m_DLDI);
 			m_CommandBuffers[i]->setViewportWithCount(viewport);
 			m_CommandBuffers[i]->setScissorWithCount(scissor);
 			m_CommandBuffers[i]->setRasterizerDiscardEnable(0);
@@ -471,8 +474,7 @@ namespace hyper
 			m_CommandBuffers[i]->setDepthTestEnable(1);
 			m_CommandBuffers[i]->setDepthWriteEnable(1);
 			m_CommandBuffers[i]->setDepthCompareOp(vk::CompareOp::eLess);
-			std::vector<vk::Bool32> colorBlends{ 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ };
-			m_CommandBuffers[i]->setColorBlendEnableEXT(0, colorBlends.size(), colorBlends.data(), m_DLDI);
+			m_CommandBuffers[i]->setColorBlendEnableEXT(0, { 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ }, m_DLDI);
 			m_CommandBuffers[i]->setColorBlendEquationEXT(0, { { vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd } }, m_DLDI);
 			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
 				| vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA, m_DLDI);

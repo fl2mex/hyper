@@ -1,9 +1,7 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS // Me when MSVC-only problem that only affects vulkan versions
-#include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
-#undef _CRT_SECURE_NO_WARNINGS	// and only then noticed when I had to reinstall the SDK :)))))
+#include <vulkan/vulkan.hpp>
 
-#include "Include.h"
+#include "Spec.h"
 
 namespace hyper
 {
@@ -25,14 +23,13 @@ namespace hyper
 		std::string getCurrentTimestamp() const;
 
 		void SetDebug(Spec spec = {}) { m_Debug = spec.Debug; m_InfoDebug = spec.InfoDebug; }
-		bool IsDebug() { return m_Debug; }
-		bool IsInfoDebug() { return m_InfoDebug; }
+		bool IsDebug() const { return m_Debug; }
+		bool IsInfoDebug() const { return m_InfoDebug; }
 
 		void Log(std::string message, Severity severity = Severity::Setup) const;
 
-		// Thank you amengede on github for this bit
-		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> MakeDebugMessenger(vk::UniqueInstance& instance, vk::DispatchLoaderDynamic& dldi);
-	
+		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> MakeDebugMessenger(vk::UniqueInstance& instance,
+			vk::detail::DispatchLoaderDynamic& dldi);
 	private:
 		bool m_Debug = false;
 		bool m_InfoDebug = false;

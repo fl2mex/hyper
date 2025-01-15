@@ -1,8 +1,7 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS // Me when MSVC-only problem that only affects vulkan versions
+#include <iostream>
 #include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
 #include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
-#undef _CRT_SECURE_NO_WARNINGS	// and GLFW probably makes some sort of vulkan call, so it's included here too :))))))))))))
 #include <vma/vk_mem_alloc.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
@@ -10,7 +9,7 @@
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "Include.h"
+#include "Spec.h"
 #include "Logger.h"
 
 namespace hyper
@@ -90,9 +89,9 @@ namespace hyper
 		GLFWwindow* m_Window{};
 
 		vk::UniqueInstance m_Instance{};
-
-		vk::DispatchLoaderDynamic m_DLDI{};
-		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> m_DebugMessenger{};
+		
+		vk::detail::DispatchLoaderDynamic m_DLDI;
+		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_DebugMessenger{};
 
 		vk::UniqueSurfaceKHR m_Surface{};
 
@@ -116,7 +115,7 @@ namespace hyper
 		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
 		vk::UniquePipelineLayout m_PipelineLayout{};
 
-		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::DispatchLoaderDynamic>> m_Shaders;
+		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
 
 		vk::UniqueCommandPool m_CommandPool{};
 

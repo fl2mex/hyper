@@ -21,14 +21,14 @@ I am using: <br>
 * [GLFW] for window creation
 * [Vulkan-Hpp] as a C++ wrapper for the vulkan API
 * [stb_image] from stb for image loading
-* [VMA] for memory management
+* [VulkanMemoryAllocator] for memory management
 
 # Learning Resources used
 * [Vulkan Tutorial] for in-depth Vulkan setup
 * [Vulkan Guide] for a more high-level look into Vulkan
 * [Vulkan Registry] for API usage/spec
 * [Vulkan Docs] for more API use/spec
-* [VMA Docs] for VMA
+* [VMA Docs]  for API use/spec for VulkanMemoryAllocator
 * [GIGD Vulkan Project] for a more in-depth look into Vulkan
 * [Sascha Willems' Vulkan Examples] for examples of specific Vulkan features
 * [Vulkan Minimal Example] for an example of unique handles
@@ -42,7 +42,7 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 * [GLFW] is licensed under the [zlib/libpng] license, and the license file is in [vendor/GLFW]. <br>
 * [stb_image] is both in the public domain ([Unlicense]) and underneath the [MIT License], and the license file is in [vendor/stb]. <br>
 * [Vulkan-Hpp] is licensed under the [Apache License 2.0], and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
-* [VMA] is licensed under the [MIT License], and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
+* [VulkanMemoryAllocator] is licensed under the [MIT License], and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
 # Good things to know/bookmark
 * [VkResult spec]
 * [VK_KHR_dynamic_rendering tutorial]
@@ -59,14 +59,14 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [GLFW]: https://github.com/glfw/glfw/
 [Vulkan-Hpp]: https://github.com/KhronosGroup/Vulkan-Hpp/
 [stb_image]: https://github.com/nothings/stb/blob/master/stb_image.h
-[VMA]: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[VulkanMemoryAllocator]: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 
 [Vulkan Tutorial]: https://vulkan-tutorial.com/
 [Vulkan Guide]: https://vkguide.dev/
 [Vulkan Registry]: https://registry.khronos.org/vulkan/specs/latest/registry.html
 [Vulkan Docs]: https://docs.vulkan.org/spec/latest/
 [VMA Docs]: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html
-[GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev
+[GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev/tree/main/vulkan
 [Sascha Willems' Vulkan Examples]: https://github.com/SaschaWillems/Vulkan
 [Vulkan Minimal Example]: https://github.com/dokipen3d/vulkanHppMinimalExample
 

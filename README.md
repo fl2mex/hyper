@@ -38,10 +38,10 @@ Builds may be found [here] sometimes, but I probably won't upload them too often
 # Licenses from the tools used
 It's probably a good idea to put the licenses of the tools used in this project here. <br>
 All code produced is under the GPL-3.0 License, except for the projects listed below: <br>
-GLFW is licensed under the zlib/libpng license, and the license file is in [vendor/glfw](vendor/glfw/LICENSE.md). <br>
-stb_image is in the public domain, and the license is in [vendor/stb_image](vendor/stb/LICENSE.txt). <br>
-Vulkan-Hpp is licensed under the Apache License 2.0, and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
-VMA is licensed under the MIT License, and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
+* [GLFW] is licensed under the [zlib/libpng] license, and the license file is in [vendor/GLFW]. <br>
+* [stb_image] is both in the public domain ([Unlicense]) and underneath the [MIT License], and the license file is in [vendor/stb]. <br>
+* [Vulkan-Hpp] is licensed under the [Apache License 2.0], and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
+* [VMA] is licensed under the [MIT License], and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
 
 [vk-bootstrap]: https://github.com/charles-lunarg/vk-bootstrap/
 [CMake]: https://cmake.org/
@@ -60,3 +60,10 @@ VMA is licensed under the MIT License, and the license is found online [here](ht
 [VMA Docs]: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html
 [GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev
 [Vulkan Minimal Example]: https://github.com/dokipen3d/vulkanHppMinimalExample
+
+[zlib/libpng]: https://zlib.net/zlib_license.html
+[MIT License]: https://opensource.org/license/MIT
+[Unlicense]: https://unlicense.org/#the-unlicense
+[Apache License 2.0]: https://www.apache.org/licenses/LICENSE-2.0
+[vendor/GLFW](vendor/GLFW/LICENSE.md)
+[vendor/stb](vendor/stb/LICENSE.txt)

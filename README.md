@@ -65,5 +65,5 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [MIT License]: https://opensource.org/license/MIT
 [Unlicense]: https://unlicense.org/#the-unlicense
 [Apache License 2.0]: https://www.apache.org/licenses/LICENSE-2.0
-[vendor/GLFW](vendor/GLFW/LICENSE.md)
-[vendor/stb](vendor/stb/LICENSE.txt)
+[vendor/GLFW]: vendor/GLFW/LICENSE.md
+[vendor/stb]: vendor/stb/LICENSE.txt

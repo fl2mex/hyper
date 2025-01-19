@@ -14,6 +14,13 @@
 
 namespace hyper
 {
+	struct Buffer
+	{
+		vk::Buffer Buffer;
+		VmaAllocation Allocation;
+		VmaAllocationInfo AllocationInfo;
+	};
+
 	struct Vertex
 	{
 		glm::vec3 position;
@@ -122,6 +129,10 @@ namespace hyper
 		vk::UniqueDescriptorPool m_DescriptorPool{};
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
 
+		Buffer m_VertexB;
+		vk::DeviceAddress m_VertexA;
+		Buffer m_IndexB;
+
 		vk::UniqueBuffer m_VertexBuffer;
 		vk::UniqueDeviceMemory m_VertexBufferMemory;
 		vk::UniqueBuffer m_IndexBuffer;
@@ -146,5 +157,21 @@ namespace hyper
 		vk::UniqueFence m_InFlightFence{};
 		vk::UniqueSemaphore m_ImageAvailableSemaphore{};
 		vk::UniqueSemaphore m_RenderFinishedSemaphore{};
+
+		Buffer CreateBuff(vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+		{
+			vk::BufferCreateInfo bufferInfo{ {}, size, usage, vk::SharingMode::eExclusive };
+			VmaAllocationCreateInfo allocCreateInfo{ {}, memoryUsage, VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT };
+			Buffer buffer;
+			VkResult e = vmaCreateBuffer(m_Allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &allocCreateInfo,
+				reinterpret_cast<VkBuffer*>(&buffer.Buffer), &buffer.Allocation, &buffer.AllocationInfo);
+			Logger::logger->Log("Buffer creation error code: " + std::to_string(e));
+			return buffer;
+		}
+
+		void DestroyBuff(Buffer& buffer)
+		{
+			vmaDestroyBuffer(m_Allocator, buffer.Buffer, buffer.Allocation);
+		}
 	};
 }

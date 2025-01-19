@@ -34,11 +34,9 @@ namespace hyper
 			static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
 
 		// DLDI and debug messenger
+		m_DLDI = vk::detail::DispatchLoaderDynamic(*m_Instance, vkGetInstanceProcAddr);
 		if (m_Spec.Debug)
-		{
-			m_DLDI = vk::detail::DispatchLoaderDynamic(*m_Instance, vkGetInstanceProcAddr);
 			m_DebugMessenger = Logger::logger->MakeDebugMessenger(m_Instance, m_DLDI);
-		}
 
 		// Surface
 		VkSurfaceKHR surfaceTmp;
@@ -74,12 +72,14 @@ namespace hyper
 			queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
 
 		// Logical device
-		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName, vk::EXTShaderObjectExtensionName };
+		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName,
+			vk::EXTShaderObjectExtensionName, /*vk::KHRBufferDeviceAddressExtensionName*/"VK_EXT_buffer_device_address", vk::EXTDescriptorIndexingExtensionName};
 		Logger::logger->Log("Device extensions used: "); for (auto& e : deviceExtensions) Logger::logger->Log(" - " + std::string(e));
 		
 		vk::PhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
-		vk::PhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1);
+		vk::PhysicalDeviceBufferDeviceAddressFeaturesEXT bufferAddressFeatures = vk::PhysicalDeviceBufferDeviceAddressFeaturesEXT(1);
+		vk::PhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1, &bufferAddressFeatures);
 		vk::PhysicalDeviceDynamicRenderingFeatures dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeatures(1, &shaderObjectFeatures);
 		
 		m_Device = m_PhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()),
@@ -90,9 +90,10 @@ namespace hyper
 		m_PresentQueue = m_Device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
 
 		// VMA Allocator
-		VmaAllocatorCreateInfo allocatorInfo{ {}, m_PhysicalDevice, m_Device.get(), {}, {}, {}, {}, {}, m_Instance.get(), m_Spec.ApiVersion };
+		VmaAllocatorCreateInfo allocatorInfo{ VmaAllocatorCreateFlags{} | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+			m_PhysicalDevice, m_Device.get(), {}, {}, {}, {}, {}, m_Instance.get(), m_Spec.ApiVersion };
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
-
+				
 		// Swapchain
 		m_SwapchainImageCount = 2;
 		Logger::logger->Log("Using " + std::to_string(m_SwapchainImageCount) + " frames in flight");
@@ -170,6 +171,34 @@ namespace hyper
 			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
 		m_Sampler = m_Device->createSamplerUnique(samplerInfo);
 
+		// Buffs
+		vk::DeviceSize vertexBuffSize = sizeof(vertices[0]) * vertices.size();
+		vk::DeviceSize indexBuffSize = sizeof(indices[0]) * indices.size();
+
+		m_VertexB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc
+			| vk::BufferUsageFlagBits::eShaderDeviceAddress, VMA_MEMORY_USAGE_GPU_ONLY);
+		m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
+		m_IndexB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
+
+		Buffer stagingB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+		void* data = stagingB.Allocation->GetMappedData();
+		memcpy(data, vertices.data(), vertexBuffSize);
+		memcpy((char*)data + vertexBuffSize, indices.data(), indexBuffSize);
+
+		vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
+		std::vector<vk::CommandBuffer> commandBuffer = m_Device->allocateCommandBuffers(allocInfo);
+		vk::BufferCopy vertexCopy{ 0, 0, vertexBuffSize };
+		vk::BufferCopy indexCopy{ vertexBuffSize, 0, indexBuffSize };
+		commandBuffer[0].begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+		commandBuffer[0].copyBuffer(stagingB.Buffer, m_VertexB.Buffer, 1, &vertexCopy);
+		commandBuffer[0].copyBuffer(stagingB.Buffer, m_IndexB.Buffer, 1, &indexCopy);
+		commandBuffer[0].end();
+		m_DeviceQueue.submit({ { 0, nullptr, nullptr, 1, &commandBuffer[0] } });
+		m_DeviceQueue.waitIdle();
+		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
+		DestroyBuff(stagingB);		
+
+		/*
 		// Vertex buffer
 		vk::DeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
 		CreateBuffer(vertexBufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
@@ -199,6 +228,7 @@ namespace hyper
 
 		m_Device->destroyBuffer(stagingBuffer);
 		m_Device->freeMemory(stagingBufferMemory);
+		*/
 
 		// Uniform buffer
 		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
@@ -293,16 +323,6 @@ namespace hyper
 	Renderer::~Renderer()	
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
-
-		m_Device->destroyBuffer(m_VertexBuffer.get()); // Why do I need to explicitly do this? They're unique handles
-		m_Device->freeMemory(m_VertexBufferMemory.get()); // Probably 2nd in the list of things to fix
-		m_VertexBufferMemory.get() = VK_NULL_HANDLE; // In a perfect world, none of this would be here
-		m_VertexBuffer.get() = VK_NULL_HANDLE;
-		
-		m_Device->destroyBuffer(m_IndexBuffer.get());
-		m_Device->freeMemory(m_IndexBufferMemory.get());
-		m_IndexBufferMemory.get() = VK_NULL_HANDLE;
-		m_IndexBuffer.get() = VK_NULL_HANDLE;
 
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
@@ -431,7 +451,7 @@ namespace hyper
 		vk::Rect2D scissor{ { 0, 0 }, { (uint32_t)width, (uint32_t)height } };
 
 		// Vertex buffers
-		vk::Buffer vertexBuffers[] = { m_VertexBuffer.get() };
+		vk::Buffer vertexBuffers[] = { m_VertexB.Buffer };
 		vk::DeviceSize offsets[] = { 0 };
 
 		// Background colour
@@ -476,8 +496,8 @@ namespace hyper
 			m_CommandBuffers[i]->setDepthCompareOp(vk::CompareOp::eLess);
 			m_CommandBuffers[i]->setColorBlendEnableEXT(0, { 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ }, m_DLDI);
 			m_CommandBuffers[i]->setColorBlendEquationEXT(0, { { vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd } }, m_DLDI);
-			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
-				| vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA, m_DLDI);
+			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
+				| vk::ColorComponentFlagBits::eA, m_DLDI);
 			m_CommandBuffers[i]->setSampleMaskEXT(vk::SampleCountFlagBits::e1, 1, m_DLDI);
 			m_CommandBuffers[i]->setAlphaToCoverageEnableEXT(0, m_DLDI);
 			m_CommandBuffers[i]->setDepthBiasEnable(0);
@@ -490,7 +510,7 @@ namespace hyper
 			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			m_CommandBuffers[i]->bindIndexBuffer(m_IndexBuffer.get(), 0, vk::IndexType::eUint16);
+			m_CommandBuffers[i]->bindIndexBuffer(m_IndexB.Buffer, 0, vk::IndexType::eUint16);
 
 			m_CommandBuffers[i]->setViewport(0, 1, &viewport);
 			m_CommandBuffers[i]->setScissor(0, 1, &scissor);

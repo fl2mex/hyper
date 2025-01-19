@@ -55,7 +55,7 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 
 [Vulkan Tutorial]: https://vulkan-tutorial.com/
 [Vulkan Guide]: https://vkguide.dev/
-[Vulkan Registry]: https://registry.khronos.org/vulkan/specs/1.3/html/
+[Vulkan Registry]: https://registry.khronos.org/vulkan/specs/latest/registry.html
 [Vulkan Docs]: https://docs.vulkan.org/spec/latest/
 [VMA Docs]: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html
 [GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev

@@ -30,6 +30,7 @@ I am using: <br>
 * [Vulkan Docs] for more API use/spec
 * [VMA Docs] for VMA
 * [GIGD Vulkan Project] for a more in-depth look into Vulkan
+* [Sascha Willems' Vulkan Examples] for examples of specific Vulkan features
 * [Vulkan Minimal Example] for an example of unique handles
 # Building
 You can build this on Windows using the included Visual Studio 2022 solution. <br>
@@ -42,6 +43,13 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 * [stb_image] is both in the public domain ([Unlicense]) and underneath the [MIT License], and the license file is in [vendor/stb]. <br>
 * [Vulkan-Hpp] is licensed under the [Apache License 2.0], and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
 * [VMA] is licensed under the [MIT License], and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
+# Good things to know/bookmark
+* [VkResult spec]
+* [VK_KHR_dynamic_rendering tutorial]
+* [VK_EXT_shader_object tutorial]
+* [Buffer device addersses in Vulkan and VMA]
+* [Managing bindless descriptors in Vulkan]
+
 
 [vk-bootstrap]: https://github.com/charles-lunarg/vk-bootstrap/
 [CMake]: https://cmake.org/
@@ -59,6 +67,7 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [Vulkan Docs]: https://docs.vulkan.org/spec/latest/
 [VMA Docs]: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html
 [GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev
+[Sascha Willems' Vulkan Examples]: https://github.com/SaschaWillems/Vulkan
 [Vulkan Minimal Example]: https://github.com/dokipen3d/vulkanHppMinimalExample
 
 [zlib/libpng]: https://zlib.net/zlib_license.html
@@ -67,3 +76,9 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [Apache License 2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [vendor/GLFW]: vendor/GLFW/LICENSE.md
 [vendor/stb]: vendor/stb/LICENSE.txt
+
+[VkResult spec]: https://registry.khronos.org/vulkan/specs/latest/man/html/VkResult.html
+[VK_KHR_dynamic_rendering tutorial]: https://lesleylai.info/en/vk-khr-dynamic-rendering/
+[VK_EXT_shader_object tutorial]: https://docs.vulkan.org/samples/latest/samples/extensions/shader_object/README.html
+[Managing bindless descriptors in Vulkan]: https://dev.to/gasim/implementing-bindless-design-in-vulkan-34no
+[Buffer device addersses in Vulkan and VMA]: https://dev.to/gasim/buffer-device-addresses-in-vulkan-and-vma-7ne

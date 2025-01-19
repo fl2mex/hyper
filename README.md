@@ -4,44 +4,59 @@ I named it hyper because I want to make a fast-ish engine (probably not how it'l
 
 # Progress
 I want to completely understand how the whole vulkan graphics pipeline works, so I will not be using any tools such as [vk-bootstrap]. <br>
-| <ul><li>- [x] Vulkan Initialisation    | <ul><li>- [ ] The Interesting Stuff    | <ul><li>- [x] Buffer Setup                    | <ul><li>- [ ] Extras                |
-|----------------------------------------|----------------------------------------|-----------------------------------------------|-------------------------------------|
-| <ul><li>- [x] Window Creation          | <ul><li>- [x] ShaderEXT Creation       | <ul><li>- [x] Framebuffer Setup               | <ul><li>- [ ] Asset System          |
-| <ul><li>- [x] Instance Creation        | <ul><li>- [x] Vertex + Fragment Shaders| <ul><li>- [x] Command Buffer Setup            | <ul><li>- [ ] Multithreading        |
-| <ul><li>- [x] Debug Messenger Creation | <ul><li>- [ ] Compute Shaders          | <ul><li>- [x] Vertex & Index Buffer Creation  | <ul><li>- [ ] Mipmaps               |
-| <ul><li>- [x] Surface Creation         | <ul><li>- [x] Eradication of Pipelines | <ul><li>- [x] Descriptor Layout/Pool Creation | <ul><li>- [ ] Multiple Shader Setup | 
-| <ul><li>- [x] Physical Device Picked   | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] VMA Implementation              | <ul><li>- [ ] Post-Processing       |
-| <ul><li>- [x] Logical Device Creation  | <ul><li>- [x] Texture Loading          | <ul><li>- [ ] Buffer Class                    | <ul><li>- [ ] Raytracing (maybe)    |
-| <ul><li>- [x] Queue Setup              | <ul><li>- [ ] GLTF Loading             |                                               | <ul><li>- [ ] Mesh Shaders (maybe)  |
-| <ul><li>- [x] Swapchain Setup          | <ul><li>- [ ] Mesh System              |                                               | <ul><li>- [ ] Better Synchronisation|
-|                                        | <ul><li>- [ ] Instancing
+| <ul><li>- [ ] Vulkan Initialisation    | <ul><li>- [ ] The Interesting Stuff    | <ul><li>- [ ] Extras                    |
+|----------------------------------------|----------------------------------------|-----------------------------------------|
+| <ul><li>- [x] Window Creation          | <ul><li>- [x] ShaderEXT Creation       | <ul><li>- [ ] Deferred Rendering        |
+| <ul><li>- [x] Instance Creation        | <ul><li>- [x] Eradication of Pipelines | <ul><li>- [ ] Asset System              |
+| <ul><li>- [x] Extension Setup          | <ul><li>- [x] Buffer Class             | <ul><li>- [ ] Multiple Shader Setup     |
+| <ul><li>- [x] Device Handling          | <ul><li>- [ ] Texture Class            | <ul><li>- [ ] Post-Processing           | 
+| <ul><li>- [x] Queues                   | <ul><li>- [ ] Mesh Class               | <ul><li>- [ ] Material System           |
+| <ul><li>- [x] Swapchain                | <ul><li>- [ ] Compute Shaders          | <ul><li>- [ ] Raytracing (maybe)        |
+| <ul><li>- [x] Buffers                  | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] Meshlet Rendering (maybe) |
+| <ul><li>- [x] Textures                 | <ul><li>- [ ] Instancing               | <ul><li>- [ ]
+| <ul><li>- [ ] GLTF Loading             | <ul><li>- [ ] Multithreading           | <ul><li>- [ ]
+|                                        | <ul><li>- [ ] Mipmaps
 # Tools used
 I am using: <br>
-* [GLFW] for window creation <br>
+* [GLFW] for window creation
 * [Vulkan-Hpp] as a C++ wrapper for the vulkan API
+* [stb_image] from stb for image loading
+* [VMA] for memory management
 
 # Learning Resources used
 * [Vulkan Tutorial] for in-depth Vulkan setup
 * [Vulkan Guide] for a more high-level look into Vulkan
 * [Vulkan Registry] for API usage/spec
 * [Vulkan Docs] for more API use/spec
+* [VMA Docs] for VMA
 * [GIGD Vulkan Project] for a more in-depth look into Vulkan
 * [Vulkan Minimal Example] for an example of unique handles
-
 # Building
 You can build this on Windows using the included Visual Studio 2022 solution. <br>
 I plan to one day learn [CMake] or [Premake], but until then, Windows FTW <br>
 Builds may be found [here] sometimes, but I probably won't upload them too often until I am way later in development.
+# Licenses from the tools used
+It's probably a good idea to put the licenses of the tools used in this project here. <br>
+All code produced is under the GPL-3.0 License, except for the projects listed below: <br>
+GLFW is licensed under the zlib/libpng license, and the license file is in [vendor/glfw](vendor/glfw/LICENSE.md). <br>
+stb_image is in the public domain, and the license is in [vendor/stb_image](vendor/stb/LICENSE.txt). <br>
+Vulkan-Hpp is licensed under the Apache License 2.0, and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
+VMA is licensed under the MIT License, and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
 
 [vk-bootstrap]: https://github.com/charles-lunarg/vk-bootstrap/
+[CMake]: https://cmake.org/
+[Premake]: https://premake.github.io/
+[here]: https://github.com/fl2mex/hyper/releases/
+
 [GLFW]: https://github.com/glfw/glfw/
 [Vulkan-Hpp]: https://github.com/KhronosGroup/Vulkan-Hpp/
+[stb_image]: https://github.com/nothings/stb/blob/master/stb_image.h
+[VMA]: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+
 [Vulkan Tutorial]: https://vulkan-tutorial.com/
 [Vulkan Guide]: https://vkguide.dev/
 [Vulkan Registry]: https://registry.khronos.org/vulkan/specs/1.3/html/
 [Vulkan Docs]: https://docs.vulkan.org/spec/latest/
-[CMake]: https://cmake.org/
-[Premake]: https://premake.github.io/
-[here]: https://github.com/fl2mex/hyper/releases/
+[VMA Docs]: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html
 [GIGD Vulkan Project]: https://github.com/amengede/getIntoGameDev
 [Vulkan Minimal Example]: https://github.com/dokipen3d/vulkanHppMinimalExample

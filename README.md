@@ -13,9 +13,9 @@ I want to completely understand how the whole vulkan graphics pipeline works, so
 | <ul><li>- [x] Queues                   | <ul><li>- [ ] Mesh Class               | <ul><li>- [ ] Material System           |
 | <ul><li>- [x] Swapchain                | <ul><li>- [ ] Compute Shaders          | <ul><li>- [ ] Raytracing (maybe)        |
 | <ul><li>- [x] Buffers                  | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] Meshlet Rendering (maybe) |
-| <ul><li>- [x] Textures                 | <ul><li>- [ ] Instancing               | <ul><li>- [ ]
-| <ul><li>- [ ] GLTF Loading             | <ul><li>- [ ] Multithreading           | <ul><li>- [ ]
-|                                        | <ul><li>- [ ] Mipmaps
+| <ul><li>- [x] Textures                 | <ul><li>- [ ] Instancing               |
+| <ul><li>- [ ] GLTF Loading             | <ul><li>- [ ] Multithreading           |
+|                                        | <ul><li>- [ ] Mipmaps                  |
 # Tools used
 I am using: <br>
 * [GLFW] for window creation

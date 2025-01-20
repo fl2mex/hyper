@@ -130,6 +130,7 @@ namespace hyper
 			vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
 		vk::AttachmentReference colourAttachmentRef{ 0, vk::ImageLayout::eColorAttachmentOptimal };
 		vk::SubpassDescription subpass{ {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
+
 		// Fence and semaphores
 		m_InFlightFence = m_Device->createFenceUnique({ vk::FenceCreateFlagBits::eSignaled });
 		m_ImageAvailableSemaphore = m_Device->createSemaphoreUnique({});
@@ -139,14 +140,9 @@ namespace hyper
 		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
 			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
-		// Need to replace this stuff with a more unique handle-friendly way instead of the c-style header
-		// Staging buffer
-		vk::Buffer stagingBuffer;
-		vk::DeviceMemory stagingBufferMemory;
-
 		// Texture
-		m_TextureImg = UltimateCreateImg("res/texture/texture.jpg", vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eSampled);
+		m_TextureImg = UltimateCreateImg(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
+			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
 
 		// Texture sampler
 		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
@@ -155,17 +151,15 @@ namespace hyper
 		m_Sampler = m_Device->createSamplerUnique(samplerInfo);
 
 		// Buffs
-		vk::DeviceSize vertexBuffSize = sizeof(vertices[0]) * vertices.size();
-		vk::DeviceSize indexBuffSize = sizeof(indices[0]) * indices.size();
-		m_VertexB = UltimateCreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
-		m_IndexB = UltimateCreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
-		//m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
+		m_VertexB = UltimateCreateBuff(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(vertices[0]) * vertices.size(),
+			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
+		m_IndexB = UltimateCreateBuff(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(indices[0]) * indices.size(),
+			vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
 		// Uniform Buff
-		vk::DeviceSize uniformBufferSize = sizeof(UniformBufferObject);
 		m_UniformBuffs.resize(m_SwapchainImageCount);
 		for (auto& ub : m_UniformBuffs)
-			ub = CreateBuff(uniformBufferSize, vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+			ub = CreateBuff(m_Allocator, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
 		
 		// Descriptor pool
 		std::vector<vk::DescriptorPoolSize> poolSizes = { { vk::DescriptorType::eUniformBuffer, m_SwapchainImageCount },
@@ -253,10 +247,13 @@ namespace hyper
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
-		DestroyBuff(m_VertexB);
-		DestroyBuff(m_IndexB);
+		DestroyBuff(m_Allocator, m_VertexB);
+		DestroyBuff(m_Allocator, m_IndexB);
 		for (auto& ub : m_UniformBuffs)
-			DestroyBuff(ub);
+			DestroyBuff(m_Allocator, ub);
+
+		DestroyImg(m_Allocator, m_TextureImg);
+		DestroyImg(m_Allocator, m_DepthImg);
 
 		vmaDestroyAllocator(m_Allocator);
 
@@ -339,7 +336,7 @@ namespace hyper
 				break;
 			}
 		}
-		m_DepthImg = CreateImg(m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
+		m_DepthImg = CreateImg(m_Allocator, m_Device.get(), m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 
@@ -429,105 +426,5 @@ namespace hyper
 				{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
 			m_CommandBuffers[i]->end();
 		}
-	}
-
-	/*
-	void Renderer::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer,
-		vk::DeviceMemory& bufferMemory)
-	{
-		vk::BufferCreateInfo bufferCreateInfo{ {}, size, usage, vk::SharingMode::eExclusive };
-		buffer = m_Device->createBuffer(bufferCreateInfo);
-
-		vk::MemoryRequirements memRequirements = m_Device->getBufferMemoryRequirements(buffer);
-		vk::PhysicalDeviceMemoryProperties memProperties = m_PhysicalDevice.getMemoryProperties();
-		uint32_t memoryTypeIndex = 0;
-		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-			if ((memRequirements.memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-			{
-				memoryTypeIndex = i;
-				break;
-			}
-
-		vk::MemoryAllocateInfo memoryAllocateInfo{ memRequirements.size, memoryTypeIndex };
-		bufferMemory = m_Device->allocateMemory(memoryAllocateInfo);
-
-		m_Device->bindBufferMemory(buffer, bufferMemory, 0);
-	}
-
-	void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
-	{
-		vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
-		std::vector<vk::CommandBuffer> commandBuffer = m_Device->allocateCommandBuffers(allocInfo);
-		vk::BufferCopy copyRegion{ 0, 0, size };
-
-		commandBuffer[0].begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-
-		commandBuffer[0].copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
-
-		commandBuffer[0].end();
-
-		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0] };
-
-		m_DeviceQueue.submit(submitInfo);
-		m_DeviceQueue.waitIdle();
-
-		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
-	}
-	*/
-	void Renderer::CreateImage(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags imageUsage, vk::MemoryPropertyFlags properties,
-		vk::Image& image, vk::DeviceMemory& imageMemory)
-	{
-		vk::ImageCreateInfo imageInfo{ {}, vk::ImageType::e2D, format, { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 },
-			1, 1, vk::SampleCountFlagBits::e1, tiling, imageUsage, vk::SharingMode::eExclusive };
-		image = m_Device->createImage(imageInfo);
-
-		vk::MemoryRequirements memRequirements = m_Device->getImageMemoryRequirements(image);
-		vk::PhysicalDeviceMemoryProperties memProperties = m_PhysicalDevice.getMemoryProperties();
-		uint32_t memoryTypeIndex = 0;
-		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-			if ((memRequirements.memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-			{
-				memoryTypeIndex = i;
-				break;
-			}
-
-		vk::MemoryAllocateInfo memoryAllocateInfo{ memRequirements.size, memoryTypeIndex };
-		imageMemory = m_Device->allocateMemory(memoryAllocateInfo);
-
-		m_Device->bindImageMemory(image, imageMemory, 0);
-	}
-
-	void Renderer::CopyImage(vk::Buffer srcBuffer, vk::Image dstImage, int width, int height)
-	{
-		vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
-		std::vector<vk::CommandBuffer> commandBuffer = m_Device->allocateCommandBuffers(allocInfo);
-		vk::BufferImageCopy copyRegion{ 0, 0, 0, {vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, { 0, 0, 0 },
-			{ static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 } };
-
-		vk::ImageMemoryBarrier topImageMemoryBarrier{ vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
-			vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-			dstImage, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-		vk::ImageMemoryBarrier bottomImageMemoryBarrier{ vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
-			vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-			dstImage, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-
-		commandBuffer[0].begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-
-		commandBuffer[0].pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer,
-			{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
-
-		commandBuffer[0].copyBufferToImage(srcBuffer, dstImage, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
-
-		commandBuffer[0].pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
-			{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
-
-		commandBuffer[0].end();
-
-		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0] };
-
-		m_DeviceQueue.submit(submitInfo);
-		m_DeviceQueue.waitIdle();
-
-		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
 	}
 }

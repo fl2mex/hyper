@@ -143,7 +143,7 @@ namespace hyper
 			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
 		// Texture
-		m_TextureImg = UltimateCreateImg(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
+		m_TextureImage = CreateImageTexture(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
 
 		// Texture sampler
@@ -153,15 +153,17 @@ namespace hyper
 		m_Sampler = m_Device->createSamplerUnique(samplerInfo);
 
 		// Buffs
-		m_VertexB = UltimateCreateBuff(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(vertices[0]) * vertices.size(),
-			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
-		m_IndexB = UltimateCreateBuff(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(indices[0]) * indices.size(),
+		m_VertexBuffer = CreateBufferStaged(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(vertices[0]) * vertices.size(),
+			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer, vertices.data());
+		m_IndexBuffer = CreateBufferStaged(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(indices[0]) * indices.size(),
 			vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
+		vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
+
 		// Uniform Buff
-		m_UniformBuffs.resize(m_SwapchainImageCount);
-		for (auto& ub : m_UniformBuffs)
-			ub = CreateBuff(m_Allocator, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		m_UniformBuffers.resize(m_SwapchainImageCount);
+		for (auto& ub : m_UniformBuffers)
+			ub = CreateBuffer(m_Allocator, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
 		
 		// Descriptor pool
 		std::vector<vk::DescriptorPoolSize> poolSizes = { { vk::DescriptorType::eUniformBuffer, m_SwapchainImageCount },
@@ -178,8 +180,8 @@ namespace hyper
 
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
-			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffs[i].Buffer, 0, sizeof(UniformBufferObject) };
-			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImg.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
+			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
+			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImage.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
@@ -232,9 +234,9 @@ namespace hyper
 		ubo.proj[1][1] *= -1;
 
 		void* bufferData;
-		vmaMapMemory(m_Allocator, m_UniformBuffs[currentFrame].Allocation, &bufferData);
+		vmaMapMemory(m_Allocator, m_UniformBuffers[currentFrame].Allocation, &bufferData);
 		memcpy(bufferData, &ubo, sizeof(ubo));
-		vmaUnmapMemory(m_Allocator, m_UniformBuffs[currentFrame].Allocation);
+		vmaUnmapMemory(m_Allocator, m_UniformBuffers[currentFrame].Allocation);
 
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -249,13 +251,13 @@ namespace hyper
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
-		DestroyBuff(m_Allocator, m_VertexB);
-		DestroyBuff(m_Allocator, m_IndexB);
-		for (auto& ub : m_UniformBuffs)
-			DestroyBuff(m_Allocator, ub);
+		DestroyBuffer(m_Allocator, m_VertexBuffer);
+		DestroyBuffer(m_Allocator, m_IndexBuffer);
+		for (auto& ub : m_UniformBuffers)
+			DestroyBuffer(m_Allocator, ub);
 
-		DestroyImg(m_Allocator, m_TextureImg);
-		DestroyImg(m_Allocator, m_DepthImg);
+		DestroyImage(m_Allocator, m_TextureImage);
+		DestroyImage(m_Allocator, m_DepthImage);
 
 		vmaDestroyAllocator(m_Allocator);
 
@@ -338,7 +340,7 @@ namespace hyper
 				break;
 			}
 		}
-		m_DepthImg = CreateImg(m_Allocator, m_Device.get(), m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
+		m_DepthImage = CreateImage(m_Allocator, m_Device.get(), m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 
@@ -355,7 +357,7 @@ namespace hyper
 		vk::Rect2D scissor{ { 0, 0 }, { (uint32_t)width, (uint32_t)height } };
 
 		// Vertex buffers
-		vk::Buffer vertexBuffers[] = { m_VertexB.Buffer };
+		vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
 		vk::DeviceSize offsets[] = { 0 };
 
 		// Background colour
@@ -363,6 +365,7 @@ namespace hyper
 
 		PushConstantData pushConstants{};
 		pushConstants.color.r = 1.0f;
+		pushConstants.vertexBuffer = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
 
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
@@ -377,7 +380,7 @@ namespace hyper
 			// Rendering info
 			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
-			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImg.ImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
+			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
 
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, attachments, &depthAttachment };
@@ -417,7 +420,7 @@ namespace hyper
 			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			m_CommandBuffers[i]->bindIndexBuffer(m_IndexB.Buffer, 0, vk::IndexType::eUint16);
+			m_CommandBuffers[i]->bindIndexBuffer(m_IndexBuffer.Buffer, 0, vk::IndexType::eUint16);
 
 			m_CommandBuffers[i]->setViewport(0, 1, &viewport);
 			m_CommandBuffers[i]->setScissor(0, 1, &scissor);

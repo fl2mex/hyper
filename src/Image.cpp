@@ -6,7 +6,7 @@
 
 namespace hyper
 {
-	Image CreateImg(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
+	Image CreateImage(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
 		vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		Image image;
@@ -28,7 +28,7 @@ namespace hyper
 		return image;
 	}
 
-	void CopyImg(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, int width, int height, vk::Image dst)
+	void CopyImage(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, int width, int height, vk::Image dst)
 	{
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
 		std::vector<vk::UniqueCommandBuffer> commandBuffer = device.allocateCommandBuffersUnique(allocInfo);
@@ -54,25 +54,25 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
-	Image UltimateCreateImg(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
+	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
 	{
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
-		Buffer buffer = CreateBuff(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		Buffer buffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
 		void* imageData;
 		vmaMapMemory(allocator, buffer.Allocation, &imageData);
 		memcpy(imageData, pixels, size);
 		vmaUnmapMemory(allocator, buffer.Allocation);
 		stbi_image_free(pixels);
-		Image image = CreateImg(allocator, device, texWidth, texHeight, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
-		CopyImg(commandPool, device, deviceQueue, buffer.Buffer, texWidth, texHeight, image.Image);
-		DestroyBuff(allocator, buffer);
+		Image image = CreateImage(allocator, device, texWidth, texHeight, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, texWidth, texHeight, image.Image);
+		DestroyBuffer(allocator, buffer);
 		return image;
 	}
 
-	void DestroyImg(VmaAllocator allocator, Image& image)
+	void DestroyImage(VmaAllocator allocator, Image& image)
 	{
 		vmaDestroyImage(allocator, image.Image, image.Allocation);
 	}

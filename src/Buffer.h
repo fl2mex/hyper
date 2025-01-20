@@ -11,9 +11,9 @@ namespace hyper
 		VmaAllocationInfo AllocationInfo;
 	};
 
-	Buffer CreateBuff(VmaAllocator allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void CopyBuff(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size);
-	Buffer UltimateCreateBuff(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, VmaAllocator allocator, vk::DeviceSize size,
+	Buffer CreateBuffer(VmaAllocator allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	void CopyBuffer(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size);
+	Buffer CreateBufferStaged(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, VmaAllocator allocator, vk::DeviceSize size,
 		vk::BufferUsageFlags usage, const void* data);
-	void DestroyBuff(VmaAllocator allocator, Buffer& buffer);
+	void DestroyBuffer(VmaAllocator allocator, Buffer& buffer);
 }

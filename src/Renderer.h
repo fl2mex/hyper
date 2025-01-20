@@ -44,6 +44,7 @@ namespace hyper
 	struct PushConstantData
 	{
 		glm::vec4 color;
+		vk::DeviceAddress vertexBuffer;
 	};
 
 	class Renderer
@@ -116,14 +117,14 @@ namespace hyper
 		vk::UniqueDescriptorPool m_DescriptorPool{};
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
 
-		Buffer m_VertexB;
-		Buffer m_IndexB;
-		std::vector<Buffer> m_UniformBuffs;
+		Buffer m_VertexBuffer;
+		Buffer m_IndexBuffer;
+		std::vector<Buffer> m_UniformBuffers;
 		
-		Image m_TextureImg;
+		Image m_TextureImage;
 		vk::UniqueSampler m_Sampler;
 
-		Image m_DepthImg;
+		Image m_DepthImage;
 
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 

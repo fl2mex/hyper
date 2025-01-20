@@ -14,10 +14,10 @@ namespace hyper
 		vk::Format Format;
 	};
 
-	Image CreateImg(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
+	Image CreateImage(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
 	vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void CopyImg(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, int width, int height, vk::Image dst);
-	Image UltimateCreateImg(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
+	void CopyImage(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, int width, int height, vk::Image dst);
+	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
-	void DestroyImg(VmaAllocator allocator, Image& image);
+	void DestroyImage(VmaAllocator allocator, Image& image);
 }

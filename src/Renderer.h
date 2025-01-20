@@ -161,11 +161,34 @@ namespace hyper
 		Buffer CreateBuff(vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 		{
 			vk::BufferCreateInfo bufferInfo{ {}, size, usage, vk::SharingMode::eExclusive };
-			VmaAllocationCreateInfo allocCreateInfo{ {}, memoryUsage, VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT };
+			VmaAllocationCreateInfo allocCreateInfo{ VMA_ALLOCATION_CREATE_MAPPED_BIT, memoryUsage };
 			Buffer buffer;
-			VkResult e = vmaCreateBuffer(m_Allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &allocCreateInfo,
+			vmaCreateBuffer(m_Allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &allocCreateInfo,
 				reinterpret_cast<VkBuffer*>(&buffer.Buffer), &buffer.Allocation, &buffer.AllocationInfo);
-			Logger::logger->Log("Buffer creation error code: " + std::to_string(e));
+			return buffer;
+		}
+
+		void CopyBuff(Buffer& src, Buffer& dst, vk::DeviceSize size)
+		{
+			vk::BufferCopy copyRegion{ 0, 0, size };
+			vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
+			std::vector<vk::UniqueCommandBuffer> commandBuffer = m_Device->allocateCommandBuffersUnique(allocInfo);
+			commandBuffer[0]->begin(vk::CommandBufferBeginInfo{});
+			commandBuffer[0]->copyBuffer(src.Buffer, dst.Buffer, 1, &copyRegion);
+			commandBuffer[0]->end();
+			vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
+			m_DeviceQueue.submit(submitInfo, nullptr);
+			m_DeviceQueue.waitIdle();
+		}
+
+		Buffer UltimateCreateBuff(vk::DeviceSize size, vk::BufferUsageFlags usage, const void* data)
+		{
+			Buffer buffer = CreateBuff(size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+			Buffer stagingBuffer = CreateBuff(size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+			void* bufferData = stagingBuffer.Allocation->GetMappedData();
+			memcpy(bufferData, data, size);
+			CopyBuff(stagingBuffer, buffer, size);
+			DestroyBuff(stagingBuffer);
 			return buffer;
 		}
 

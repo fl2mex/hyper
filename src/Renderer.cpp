@@ -27,7 +27,7 @@ namespace hyper
 			layers.push_back("VK_LAYER_KHRONOS_validation");
 		}
 		Logger::logger->Log("Extensions used: "); for (uint32_t i = 0; i < glfwExtensionCount; i++) Logger::logger->Log(" - " + std::string(glfwExtensions[i]));
-		Logger::logger->Log("Validation layers used: "); for (auto& l : layers) Logger::logger->Log(" - " + std::string(l));
+		Logger::logger->Log("Layers used: "); for (auto& l : layers) Logger::logger->Log(" - " + std::string(l));
 
 		// Instance
 		m_Instance = vk::createInstanceUnique(vk::InstanceCreateInfo{ vk::InstanceCreateFlags(), &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
@@ -73,12 +73,14 @@ namespace hyper
 
 		// Logical device
 		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName,
-			vk::EXTShaderObjectExtensionName, /*vk::KHRBufferDeviceAddressExtensionName*/"VK_EXT_buffer_device_address", vk::EXTDescriptorIndexingExtensionName};
+			vk::EXTShaderObjectExtensionName, vk::KHRBufferDeviceAddressExtensionName, vk::EXTDescriptorIndexingExtensionName};
 		Logger::logger->Log("Device extensions used: "); for (auto& e : deviceExtensions) Logger::logger->Log(" - " + std::string(e));
 		
 		vk::PhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
-		vk::PhysicalDeviceBufferDeviceAddressFeaturesEXT bufferAddressFeatures = vk::PhysicalDeviceBufferDeviceAddressFeaturesEXT(1);
+
+		vk::PhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = vk::PhysicalDeviceDescriptorIndexingFeatures();
+		vk::PhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures = vk::PhysicalDeviceBufferDeviceAddressFeatures(1, {}, {}, &descriptorIndexingFeatures);
 		vk::PhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1, &bufferAddressFeatures);
 		vk::PhysicalDeviceDynamicRenderingFeatures dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeatures(1, &shaderObjectFeatures);
 		
@@ -175,28 +177,27 @@ namespace hyper
 		vk::DeviceSize vertexBuffSize = sizeof(vertices[0]) * vertices.size();
 		vk::DeviceSize indexBuffSize = sizeof(indices[0]) * indices.size();
 
-		m_VertexB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc
+		/*
+		m_VertexB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst
 			| vk::BufferUsageFlagBits::eShaderDeviceAddress, VMA_MEMORY_USAGE_GPU_ONLY);
-		m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
-		m_IndexB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
+		Buffer vertStagingB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+		void* vertData = vertStagingB.Allocation->GetMappedData();
+		memcpy(vertData, vertices.data(), vertexBuffSize);
+		CopyBuff(vertStagingB, m_VertexB, vertexBuffSize);
+		DestroyBuff(vertStagingB);
 
-		Buffer stagingB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-		void* data = stagingB.Allocation->GetMappedData();
-		memcpy(data, vertices.data(), vertexBuffSize);
-		memcpy((char*)data + vertexBuffSize, indices.data(), indexBuffSize);
+		m_IndexB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+		Buffer indexStagingB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+		void* indexData = indexStagingB.Allocation->GetMappedData();
+		memcpy(indexData, indices.data(), indexBuffSize);
+		CopyBuff(indexStagingB, m_IndexB, indexBuffSize);
+		DestroyBuff(indexStagingB);
+		*/
+		//m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
+		
 
-		vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
-		std::vector<vk::CommandBuffer> commandBuffer = m_Device->allocateCommandBuffers(allocInfo);
-		vk::BufferCopy vertexCopy{ 0, 0, vertexBuffSize };
-		vk::BufferCopy indexCopy{ vertexBuffSize, 0, indexBuffSize };
-		commandBuffer[0].begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-		commandBuffer[0].copyBuffer(stagingB.Buffer, m_VertexB.Buffer, 1, &vertexCopy);
-		commandBuffer[0].copyBuffer(stagingB.Buffer, m_IndexB.Buffer, 1, &indexCopy);
-		commandBuffer[0].end();
-		m_DeviceQueue.submit({ { 0, nullptr, nullptr, 1, &commandBuffer[0] } });
-		m_DeviceQueue.waitIdle();
-		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
-		DestroyBuff(stagingB);		
+		m_VertexB = UltimateCreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
+		m_IndexB = UltimateCreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
 		/*
 		// Vertex buffer

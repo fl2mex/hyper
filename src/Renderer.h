@@ -130,13 +130,11 @@ namespace hyper
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
 
 		Buffer m_VertexB;
-		vk::DeviceAddress m_VertexA;
 		Buffer m_IndexB;
+		vk::DeviceAddress m_VertexA;
 
-		vk::UniqueBuffer m_VertexBuffer;
-		vk::UniqueDeviceMemory m_VertexBufferMemory;
-		vk::UniqueBuffer m_IndexBuffer;
-		vk::UniqueDeviceMemory m_IndexBufferMemory;
+		std::vector<Buffer> m_UniformBuffs;
+
 
 		vk::UniqueImage m_TextureImage;
 		uint32_t m_TextureWidth{}, m_TextureHeight{};
@@ -148,23 +146,20 @@ namespace hyper
 		vk::UniqueDeviceMemory m_DepthImageMemory;
 		vk::UniqueImageView m_DepthImageView;
 
-		std::vector<vk::UniqueBuffer> m_UniformBuffers;
-		std::vector<vk::UniqueDeviceMemory> m_UniformBuffersMemory;
-		std::vector<void*> m_UniformBuffersMapped;
-
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 
 		vk::UniqueFence m_InFlightFence{};
 		vk::UniqueSemaphore m_ImageAvailableSemaphore{};
 		vk::UniqueSemaphore m_RenderFinishedSemaphore{};
 
-		Buffer CreateBuff(vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+		Buffer CreateBuff(vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage) const
 		{
 			vk::BufferCreateInfo bufferInfo{ {}, size, usage, vk::SharingMode::eExclusive };
 			VmaAllocationCreateInfo allocCreateInfo{ VMA_ALLOCATION_CREATE_MAPPED_BIT, memoryUsage };
 			Buffer buffer;
-			vmaCreateBuffer(m_Allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &allocCreateInfo,
+			VkResult e = vmaCreateBuffer(m_Allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &allocCreateInfo,
 				reinterpret_cast<VkBuffer*>(&buffer.Buffer), &buffer.Allocation, &buffer.AllocationInfo);
+			if (e != 0) Logger::logger->Log("Buffer creation error code: " + std::to_string(e));
 			return buffer;
 		}
 
@@ -185,14 +180,16 @@ namespace hyper
 		{
 			Buffer buffer = CreateBuff(size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
 			Buffer stagingBuffer = CreateBuff(size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-			void* bufferData = stagingBuffer.Allocation->GetMappedData();
+			void* bufferData;
+			vmaMapMemory(m_Allocator, stagingBuffer.Allocation, &bufferData);
 			memcpy(bufferData, data, size);
+			vmaUnmapMemory(m_Allocator, stagingBuffer.Allocation);
 			CopyBuff(stagingBuffer, buffer, size);
 			DestroyBuff(stagingBuffer);
 			return buffer;
 		}
 
-		void DestroyBuff(Buffer& buffer)
+		void DestroyBuff(Buffer& buffer) const
 		{
 			vmaDestroyBuffer(m_Allocator, buffer.Buffer, buffer.Allocation);
 		}

@@ -176,73 +176,16 @@ namespace hyper
 		// Buffs
 		vk::DeviceSize vertexBuffSize = sizeof(vertices[0]) * vertices.size();
 		vk::DeviceSize indexBuffSize = sizeof(indices[0]) * indices.size();
-
-		/*
-		m_VertexB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst
-			| vk::BufferUsageFlagBits::eShaderDeviceAddress, VMA_MEMORY_USAGE_GPU_ONLY);
-		Buffer vertStagingB = CreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-		void* vertData = vertStagingB.Allocation->GetMappedData();
-		memcpy(vertData, vertices.data(), vertexBuffSize);
-		CopyBuff(vertStagingB, m_VertexB, vertexBuffSize);
-		DestroyBuff(vertStagingB);
-
-		m_IndexB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
-		Buffer indexStagingB = CreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-		void* indexData = indexStagingB.Allocation->GetMappedData();
-		memcpy(indexData, indices.data(), indexBuffSize);
-		CopyBuff(indexStagingB, m_IndexB, indexBuffSize);
-		DestroyBuff(indexStagingB);
-		*/
-		//m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
-		
-
 		m_VertexB = UltimateCreateBuff(vertexBuffSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
 		m_IndexB = UltimateCreateBuff(indexBuffSize, vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
+		//m_VertexA = m_Device->getBufferAddress({ m_VertexB.Buffer });
 
-		/*
-		// Vertex buffer
-		vk::DeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-		CreateBuffer(vertexBufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-			stagingBuffer, stagingBufferMemory);
-		void* vertData;
-		vertData = m_Device->mapMemory(stagingBufferMemory, 0, vertexBufferSize, {});
-		memcpy(vertData, vertices.data(), (size_t)vertexBufferSize);
-		m_Device->unmapMemory(stagingBufferMemory);
-		CreateBuffer(vertexBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal,
-			m_VertexBuffer.get(), m_VertexBufferMemory.get());
-		CopyBuffer(stagingBuffer, m_VertexBuffer.get(), vertexBufferSize);
-
-		m_Device->destroyBuffer(stagingBuffer);
-		m_Device->freeMemory(stagingBufferMemory);
-
-		// Index buffer
-		vk::DeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-		CreateBuffer(indexBufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-			stagingBuffer, stagingBufferMemory);
-		void* indexData;
-		indexData = m_Device->mapMemory(stagingBufferMemory, 0, indexBufferSize, {});
-		memcpy(indexData, indices.data(), (size_t)indexBufferSize);
-		m_Device->unmapMemory(stagingBufferMemory);
-		CreateBuffer(indexBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal,
-			m_IndexBuffer.get(), m_IndexBufferMemory.get());
-		CopyBuffer(stagingBuffer, m_IndexBuffer.get(), indexBufferSize);
-
-		m_Device->destroyBuffer(stagingBuffer);
-		m_Device->freeMemory(stagingBufferMemory);
-		*/
-
-		// Uniform buffer
-		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
-		m_UniformBuffers.resize(m_SwapchainImageCount);
-		m_UniformBuffersMemory.resize(m_SwapchainImageCount);
-		m_UniformBuffersMapped.resize(m_SwapchainImageCount);
-		for (size_t i = 0; i < m_SwapchainImageCount; i++)
-		{
-			CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-				m_UniformBuffers[i].get(), m_UniformBuffersMemory[i].get());
-			m_UniformBuffersMapped[i] = m_Device->mapMemory(m_UniformBuffersMemory[i].get(), 0, bufferSize, {});
-		}
-
+		// Uniform Buff
+		vk::DeviceSize uniformBufferSize = sizeof(UniformBufferObject);
+		m_UniformBuffs.resize(m_SwapchainImageCount);
+		for (auto& ub : m_UniformBuffs)
+			ub = CreateBuff(uniformBufferSize, vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		
 		// Descriptor pool
 		std::vector<vk::DescriptorPoolSize> poolSizes = { { vk::DescriptorType::eUniformBuffer, m_SwapchainImageCount },
 			{ vk::DescriptorType::eCombinedImageSampler, m_SwapchainImageCount } };	
@@ -258,7 +201,7 @@ namespace hyper
 
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
-			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].get(), 0, sizeof(UniformBufferObject) };
+			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffs[i].Buffer, 0, sizeof(UniformBufferObject) };
 			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
@@ -310,7 +253,11 @@ namespace hyper
 		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1;
-		memcpy(m_UniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+
+		void* bufferData;
+		vmaMapMemory(m_Allocator, m_UniformBuffs[currentFrame].Allocation, &bufferData);
+		memcpy(bufferData, &ubo, sizeof(ubo));
+		vmaUnmapMemory(m_Allocator, m_UniformBuffs[currentFrame].Allocation);
 
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -325,13 +272,10 @@ namespace hyper
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
-		for (size_t i = 0; i < m_SwapchainImageCount; i++)
-		{
-			m_Device->destroyBuffer(m_UniformBuffers[i].get());
-			m_Device->freeMemory(m_UniformBuffersMemory[i].get());
-			m_UniformBuffersMemory[i].get() = VK_NULL_HANDLE;
-			m_UniformBuffers[i].get() = VK_NULL_HANDLE;
-		}
+		DestroyBuff(m_VertexB);
+		DestroyBuff(m_IndexB);
+		for (auto& ub : m_UniformBuffs)
+			DestroyBuff(ub);
 
 		m_Device->destroyImage(m_TextureImage.get());
 		m_Device->freeMemory(m_TextureImageMemory.get());
@@ -626,5 +570,4 @@ namespace hyper
 
 		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
 	}
-
 }

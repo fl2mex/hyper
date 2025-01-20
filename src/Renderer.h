@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
 #include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
+#include <stb_image.h>
 #include <vma/vk_mem_alloc.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
@@ -14,6 +15,16 @@
 
 namespace hyper
 {
+	struct Image
+	{
+		vk::Image Image;
+		vk::UniqueImageView ImageView;
+		VmaAllocation Allocation;
+		VmaAllocationInfo AllocationInfo;
+		vk::Extent2D Extent;
+		vk::Format Format;
+	};
+
 	struct Buffer
 	{
 		vk::Buffer Buffer;
@@ -80,9 +91,6 @@ namespace hyper
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
 		
-		// Eventually want to move these into a class and file
-		void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
-		void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 		// Same with image, texture, mesh
 		void CreateImage(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags imageUsage, vk::MemoryPropertyFlags properties,
 			vk::Image& image, vk::DeviceMemory& imageMemory);
@@ -134,17 +142,12 @@ namespace hyper
 		vk::DeviceAddress m_VertexA;
 
 		std::vector<Buffer> m_UniformBuffs;
+		
+		Image m_TextureImg;
 
-
-		vk::UniqueImage m_TextureImage;
-		uint32_t m_TextureWidth{}, m_TextureHeight{};
-		vk::UniqueDeviceMemory m_TextureImageMemory;
-		vk::UniqueImageView m_TextureImageView;
 		vk::UniqueSampler m_Sampler;
 
-		vk::UniqueImage m_DepthImage;
-		vk::UniqueDeviceMemory m_DepthImageMemory;
-		vk::UniqueImageView m_DepthImageView;
+		Image m_DepthImg;
 
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 
@@ -168,7 +171,7 @@ namespace hyper
 			vk::BufferCopy copyRegion{ 0, 0, size };
 			vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
 			std::vector<vk::UniqueCommandBuffer> commandBuffer = m_Device->allocateCommandBuffersUnique(allocInfo);
-			commandBuffer[0]->begin(vk::CommandBufferBeginInfo{});
+			commandBuffer[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 			commandBuffer[0]->copyBuffer(src.Buffer, dst.Buffer, 1, &copyRegion);
 			commandBuffer[0]->end();
 			vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
@@ -192,6 +195,75 @@ namespace hyper
 		void DestroyBuff(Buffer& buffer) const
 		{
 			vmaDestroyBuffer(m_Allocator, buffer.Buffer, buffer.Allocation);
+		}
+
+		Image CreateImg(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage)
+		{
+			Image image;
+			image.Format = format;
+			image.Extent = vk::Extent2D{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+			vk::ImageCreateInfo imageInfo{ {}, vk::ImageType::e2D, format, { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 },
+			1, 1, vk::SampleCountFlagBits::e1, tiling, usage, vk::SharingMode::eExclusive };
+			VmaAllocationCreateInfo allocCreateInfo{ VMA_ALLOCATION_CREATE_MAPPED_BIT, memoryUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT };
+			VkResult e = vmaCreateImage(m_Allocator, reinterpret_cast<VkImageCreateInfo*>(&imageInfo), &allocCreateInfo, reinterpret_cast<VkImage*>(&image.Image),
+				&image.Allocation, &image.AllocationInfo);
+			if (e != 0) Logger::logger->Log("Image creation error code: " + std::to_string(e));
+
+			vk::ImageAspectFlags aspectFlag = vk::ImageAspectFlagBits::eColor;
+			if (format == vk::Format::eD32Sfloat)
+				aspectFlag = vk::ImageAspectFlagBits::eDepth;
+
+			vk::ImageViewCreateInfo imageViewCreateInfo{ {}, image.Image, vk::ImageViewType::e2D, format, {},
+			{ aspectFlag, 0, 1, 0, 1 } };
+			image.ImageView = m_Device->createImageViewUnique(imageViewCreateInfo);
+			return image;
+		}
+				
+		void CopyImg(vk::Buffer buffer, int width, int height, vk::Image dst)
+		{
+			vk::CommandBufferAllocateInfo allocInfo{ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 };
+			std::vector<vk::UniqueCommandBuffer> commandBuffer = m_Device->allocateCommandBuffersUnique(allocInfo);
+			vk::BufferImageCopy copyRegion{ 0, 0, 0, {vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, { 0, 0, 0 },
+				{ static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 } };
+
+			vk::ImageMemoryBarrier topImageMemoryBarrier{ vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
+				vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+				dst, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+			vk::ImageMemoryBarrier bottomImageMemoryBarrier{ vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
+				vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+				dst, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+
+			commandBuffer[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+			commandBuffer[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer,
+				{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
+			commandBuffer[0]->copyBufferToImage(buffer, dst, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+			commandBuffer[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
+				{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
+			commandBuffer[0]->end();
+			vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
+			m_DeviceQueue.submit(submitInfo, nullptr);
+			m_DeviceQueue.waitIdle();
+		}
+		
+		Image UltimateCreateImg(std::string path, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
+		{
+			int texWidth, texHeight, texChannels;
+			stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+			vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
+			Buffer buffer = CreateBuff(size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
+			void* imageData;
+			vmaMapMemory(m_Allocator, buffer.Allocation, &imageData);
+			memcpy(imageData, pixels, size);
+			vmaUnmapMemory(m_Allocator, buffer.Allocation);
+			stbi_image_free(pixels);
+			Image image = CreateImg(texWidth, texHeight, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+			CopyImg(buffer.Buffer, texWidth, texHeight, image.Image);
+			return image;
+		}
+
+		void DestroyImg(Image& image) const
+		{
+			vmaDestroyImage(m_Allocator, image.Image, image.Allocation);
 		}
 	};
 }

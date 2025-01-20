@@ -145,27 +145,8 @@ namespace hyper
 		vk::DeviceMemory stagingBufferMemory;
 
 		// Texture
-		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load("res/texture/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
-		CreateBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-			stagingBuffer, stagingBufferMemory);
-		void* imageData;
-		imageData = m_Device->mapMemory(stagingBufferMemory, 0, imageSize, {});
-		memcpy(imageData, pixels, static_cast<size_t>(imageSize));
-		m_Device->unmapMemory(stagingBufferMemory);
-		stbi_image_free(pixels);
-		CreateImage(texWidth, texHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-			vk::MemoryPropertyFlagBits::eDeviceLocal, m_TextureImage.get(), m_TextureImageMemory.get());
-		CopyImage(stagingBuffer, m_TextureImage.get(), texWidth, texHeight);
-
-		m_Device->destroyBuffer(stagingBuffer);
-		m_Device->freeMemory(stagingBufferMemory);
-
-		// Texture image view
-		vk::ImageViewCreateInfo imageViewCreateInfo{ {}, m_TextureImage.get(), vk::ImageViewType::e2D, vk::Format::eR8G8B8A8Unorm, {},
-			{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-		m_TextureImageView = m_Device->createImageViewUnique(imageViewCreateInfo);
+		m_TextureImg = UltimateCreateImg("res/texture/texture.jpg", vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eSampled);
 
 		// Texture sampler
 		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
@@ -202,7 +183,7 @@ namespace hyper
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
 			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffs[i].Buffer, 0, sizeof(UniformBufferObject) };
-			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
+			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImg.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
@@ -277,16 +258,6 @@ namespace hyper
 		for (auto& ub : m_UniformBuffs)
 			DestroyBuff(ub);
 
-		m_Device->destroyImage(m_TextureImage.get());
-		m_Device->freeMemory(m_TextureImageMemory.get());
-		m_TextureImageMemory.get() = VK_NULL_HANDLE;
-		m_TextureImage.get() = VK_NULL_HANDLE;
-
-		m_Device->destroyImage(m_DepthImage.get());	
-		m_Device->freeMemory(m_DepthImageMemory.get());
-		m_DepthImageMemory.get() = VK_NULL_HANDLE;
-		m_DepthImage.get() = VK_NULL_HANDLE;
-
 		vmaDestroyAllocator(m_Allocator);
 
 		Logger::logger->Log("Goodbye!");
@@ -306,13 +277,6 @@ namespace hyper
 
 		m_SwapchainImages.clear();
 		m_ImageViews.clear();
-
-		m_Device->destroy(m_DepthImage.get());
-		m_Device->free(m_DepthImageMemory.get());
-		m_Device->destroy(m_DepthImageView.get());
-		m_DepthImage.get() = VK_NULL_HANDLE;
-		m_DepthImageMemory.get() = VK_NULL_HANDLE;
-		m_DepthImageView.get() = VK_NULL_HANDLE;
 
 		m_Device->destroySwapchainKHR(m_Swapchain.get());
 		m_Swapchain.get() = VK_NULL_HANDLE;
@@ -375,12 +339,8 @@ namespace hyper
 				break;
 			}
 		}
-
-		CreateImage(m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment,
-			vk::MemoryPropertyFlagBits::eDeviceLocal, m_DepthImage.get(), m_DepthImageMemory.get());
-		vk::ImageViewCreateInfo depthImageViewCreateInfo{ {}, m_DepthImage.get(), vk::ImageViewType::e2D, depthFormat, {},
-			{ vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1 } };
-		m_DepthImageView = m_Device->createImageViewUnique(depthImageViewCreateInfo);
+		m_DepthImg = CreateImg(m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 
 	void Renderer::RecreateCommandBuffers()
@@ -415,7 +375,7 @@ namespace hyper
 			// Rendering info
 			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
-			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
+			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImg.ImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
 
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, attachments, &depthAttachment };
@@ -471,6 +431,7 @@ namespace hyper
 		}
 	}
 
+	/*
 	void Renderer::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer,
 		vk::DeviceMemory& bufferMemory)
 	{
@@ -512,7 +473,7 @@ namespace hyper
 
 		m_Device->freeCommandBuffers(m_CommandPool.get(), commandBuffer[0]);
 	}
-
+	*/
 	void Renderer::CreateImage(int width, int height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags imageUsage, vk::MemoryPropertyFlags properties,
 		vk::Image& image, vk::DeviceMemory& imageMemory)
 	{
@@ -558,8 +519,7 @@ namespace hyper
 		commandBuffer[0].copyBufferToImage(srcBuffer, dstImage, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
 
 		commandBuffer[0].pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
-			{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier
-		);
+			{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
 
 		commandBuffer[0].end();
 

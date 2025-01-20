@@ -9,7 +9,7 @@ I want to completely understand how the whole vulkan graphics pipeline works, so
 | <ul><li>- [x] Window Creation          | <ul><li>- [x] ShaderEXT Creation       | <ul><li>- [ ] Deferred Rendering        |
 | <ul><li>- [x] Instance Creation        | <ul><li>- [x] Eradication of Pipelines | <ul><li>- [ ] Asset System              |
 | <ul><li>- [x] Extension Setup          | <ul><li>- [x] Buffer Class             | <ul><li>- [ ] Multiple Shader Setup     |
-| <ul><li>- [x] Device Handling          | <ul><li>- [ ] Texture Class            | <ul><li>- [ ] Post-Processing           | 
+| <ul><li>- [x] Device Handling          | <ul><li>- [x] Image Class              | <ul><li>- [ ] Post-Processing           | 
 | <ul><li>- [x] Queues                   | <ul><li>- [ ] Mesh Class               | <ul><li>- [ ] Material System           |
 | <ul><li>- [x] Swapchain                | <ul><li>- [ ] Compute Shaders          | <ul><li>- [ ] Raytracing (maybe)        |
 | <ul><li>- [x] Buffers                  | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] Meshlet Rendering (maybe) |

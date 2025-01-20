@@ -5,6 +5,7 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
+#include "Logger.h"
 #include "File.h"
 
 namespace hyper

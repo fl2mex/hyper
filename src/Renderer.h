@@ -2,7 +2,6 @@
 #include <iostream>
 #include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
 #include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
-#include <stb_image.h>
 #include <vma/vk_mem_alloc.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
@@ -11,7 +10,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Spec.h"
-#include "Logger.h"
 #include "Buffer.h"
 #include "Image.h"
 

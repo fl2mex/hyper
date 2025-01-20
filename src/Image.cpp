@@ -6,7 +6,6 @@
 
 namespace hyper
 {
-
 	Image CreateImg(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
 		vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{

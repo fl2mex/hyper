@@ -3,6 +3,7 @@
 
 #include "Spec.h"
 #include "Renderer.h"
+#include "Logger.h"
 
 namespace hyper
 {

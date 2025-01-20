@@ -112,20 +112,21 @@ namespace hyper
 
 		m_DescriptorSetLayout = m_Device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
+		// Pipeline layout
+		vk::PushConstantRange pushConstantRange{ vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData) };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{ {}, 1, &m_DescriptorSetLayout.get(), 1, &pushConstantRange };
+		m_PipelineLayout = m_Device->createPipelineLayoutUnique(pipelineLayoutCreateInfo);
+
 		// Shaders
 		std::vector<char> vertShaderCode = readFile("res/shader/shader.vert.spv");
 		std::vector<char> fragShaderCode = readFile("res/shader/shader.frag.spv");
 		std::vector<vk::ShaderCreateInfoEXT> shaderInfos{
 			{ {}, vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment, vk::ShaderCodeTypeEXT::eSpirv,
-			vertShaderCode.size(), vertShaderCode.data(), "main", 1, &m_DescriptorSetLayout.get() },
+			vertShaderCode.size(), vertShaderCode.data(), "main", 1, &m_DescriptorSetLayout.get(), 1, &pushConstantRange },
 			{ {}, vk::ShaderStageFlagBits::eFragment, vk::ShaderStageFlagBits{0}, vk::ShaderCodeTypeEXT::eSpirv,
-			fragShaderCode.size(), fragShaderCode.data(), "main", 1,&m_DescriptorSetLayout.get() } };
+			fragShaderCode.size(), fragShaderCode.data(), "main", 1,&m_DescriptorSetLayout.get(), 1, &pushConstantRange } };
 		
 		m_Shaders = m_Device->createShadersEXTUnique(shaderInfos, nullptr, m_DLDI).value;
-
-		// Pipeline layout
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{ {}, 1, &m_DescriptorSetLayout.get() };
-		m_PipelineLayout = m_Device->createPipelineLayoutUnique(pipelineLayoutCreateInfo);
 
 		vk::AttachmentDescription colorAttachment{ {}, m_SwapchainImageFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear,
 			vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
@@ -360,6 +361,9 @@ namespace hyper
 		// Background colour
 		std::vector<vk::ClearValue> clearValues{ {{ 1.0f, 0.5f, 0.3f, 1.0f }}, {{ 1.0f, 0 }} };
 
+		PushConstantData pushConstants{};
+		pushConstants.color.r = 1.0f;
+
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
 			// Memory barriers for synchronisation
@@ -419,6 +423,7 @@ namespace hyper
 			m_CommandBuffers[i]->setScissor(0, 1, &scissor);
 
 			m_CommandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_PipelineLayout, 0, 1, &m_DescriptorSets[i].get(), 0, nullptr);
+			m_CommandBuffers[i]->pushConstants(*m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData), &pushConstants);
 			m_CommandBuffers[i]->drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 			m_CommandBuffers[i]->endRendering();

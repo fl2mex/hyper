@@ -41,6 +41,10 @@ namespace hyper
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
+	struct PushConstantData
+	{
+		glm::vec4 color;
+	};
 
 	class Renderer
 	{

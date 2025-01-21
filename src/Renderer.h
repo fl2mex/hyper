@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <filesystem>
 #include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
 #include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
 #include <vma/vk_mem_alloc.h>
@@ -9,32 +10,13 @@
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Mesh.h"
 #include "Spec.h"
 #include "Buffer.h"
 #include "Image.h"
 
 namespace hyper
 {
-	struct Vertex
-	{
-		glm::vec3 position;
-		glm::vec3 colour;
-		glm::vec2 texCoord;
-
-		static vk::VertexInputBindingDescription2EXT getBindingDescription()
-		{
-			return vk::VertexInputBindingDescription2EXT{ 0, sizeof(Vertex), vk::VertexInputRate::eVertex, 1 };
-		}
-		static std::array<vk::VertexInputAttributeDescription2EXT, 3> getAttributeDescriptions()
-		{
-			std::array<vk::VertexInputAttributeDescription2EXT, 3> attributeDescriptions;
-			attributeDescriptions[0] = vk::VertexInputAttributeDescription2EXT{ 0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position) };
-			attributeDescriptions[1] = vk::VertexInputAttributeDescription2EXT{ 1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, colour) };
-			attributeDescriptions[2] = vk::VertexInputAttributeDescription2EXT{ 2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord) };
-			return attributeDescriptions;
-		}
-	};
-
 	struct UniformBufferObject
 	{
 		glm::mat4 model;
@@ -59,15 +41,14 @@ namespace hyper
 	private:
 		std::vector<Vertex> vertices
 		{
-			{{-0.5f, -0.5f,  0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-			{{ 0.5f, -0.5f,  0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-			{{ 0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-			{{-0.5f,  0.5f,  0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-			{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-			{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+			{{-0.5f, -0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+			{{ 0.5f, -0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+			{{ 0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+			{{-0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+			{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+			{{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 		};
 
 		std::vector<uint16_t> indices

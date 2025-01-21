@@ -3,8 +3,9 @@
 
 struct Vertex {
 	vec3 position;
-	vec3 color;
-	vec2 texCoord;
+	vec3 normal;
+	vec4 color;
+	vec2 uv;
 };
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer { 
@@ -34,5 +35,5 @@ void main() {
 
 	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(v.position, 1.0);
 	fragColor = v.color.rgb * pc.color.rgb;
-	fragTexCoord = v.texCoord;
+	fragTexCoord = v.uv;
 }

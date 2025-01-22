@@ -8,12 +8,11 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
-#include <glm/gtc/matrix_transform.hpp>
 
-#include "Mesh.h"
 #include "Spec.h"
 #include "Buffer.h"
 #include "Image.h"
+#include "Mesh.h"
 
 namespace hyper
 {
@@ -25,7 +24,7 @@ namespace hyper
 	};
 	struct PushConstantData
 	{
-		glm::vec4 color;
+		glm::mat4 worldMatrix;
 		vk::DeviceAddress vertexBuffer;
 	};
 
@@ -39,6 +38,8 @@ namespace hyper
 		bool m_FramebufferResized = false;
 
 	private:
+		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
+
 		std::vector<Vertex> vertices
 		{
 			{{-0.5f, -0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
@@ -51,7 +52,7 @@ namespace hyper
 			{{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 		};
 
-		std::vector<uint16_t> indices
+		std::vector<uint32_t> indices
 		{
 			0, 1, 2, 2, 3, 0,
 			4, 5, 6, 6, 7, 4

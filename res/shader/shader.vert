@@ -19,7 +19,7 @@ layout(binding = 0) uniform UniformBufferObject {
 } ubo;
 
 layout(push_constant) uniform PushConstants {
-	vec4 color;
+	mat4 worldMatrix;
 	VertexBuffer vertexBuffer;
 } pc;
 
@@ -34,6 +34,6 @@ void main() {
 	Vertex v = pc.vertexBuffer.vertices[gl_VertexIndex];
 
 	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(v.position, 1.0);
-	fragColor = v.color.rgb * pc.color.rgb;
+	fragColor = v.color.rgb;
 	fragTexCoord = v.uv;
 }

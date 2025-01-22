@@ -44,5 +44,5 @@ namespace hyper
 	};
 
 	//std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadModel(vk::CommandPool commandPool, vk::Device device, vk::Queue queue, VmaAllocator allocator,
-	//	std::filesystem::path filePath = "res/model/basicmesh.glb");
+	//	std::filesystem::path filePath);
 }

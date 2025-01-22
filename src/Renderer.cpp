@@ -5,6 +5,10 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
@@ -58,7 +62,7 @@ namespace hyper
 
 				// load vertex positions
 				{
-					fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex + 1];
+					fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
 					vertices.resize(vertices.size() + posAccessor.count);
 
 					fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
@@ -75,7 +79,7 @@ namespace hyper
 				auto normals = p.findAttribute("NORMAL");
 				if (normals != p.attributes.end()) {
 
-					fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[(*normals).accessorIndex + 1],
+					fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[(*normals).accessorIndex],
 						[&](glm::vec3 v, size_t index) {
 							vertices[initial_vtx + index].normal = v;
 						});
@@ -85,9 +89,9 @@ namespace hyper
 				auto uv = p.findAttribute("TEXCOORD_0");
 				if (uv != p.attributes.end()) {
 
-					fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[(*uv).accessorIndex + 1],
+					fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[(*uv).accessorIndex],
 						[&](glm::vec2 v, size_t index) {
-							vertices[initial_vtx + index].uv = { v.x, v.y };
+							vertices[initial_vtx + index].uv = v;
 						});
 				}
 
@@ -95,7 +99,7 @@ namespace hyper
 				auto colors = p.findAttribute("COLOR_0");
 				if (colors != p.attributes.end()) {
 
-					fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*colors).accessorIndex + 1],
+					fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*colors).accessorIndex],
 						[&](glm::vec4 v, size_t index) {
 							vertices[initial_vtx + index].color = v;
 						});
@@ -111,7 +115,7 @@ namespace hyper
 				}
 			}
 			newmesh.vertexBuffer = CreateBufferStaged(commandPool, device, queue, allocator, vertices.size() * sizeof(vertices[0]),
-				vk::BufferUsageFlagBits::eVertexBuffer, vertices.data());
+				vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
 			newmesh.indexBuffer = CreateBufferStaged(commandPool, device, queue, allocator, indices.size() * sizeof(indices[0]),
 				vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
@@ -271,6 +275,8 @@ namespace hyper
 
 		vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
 
+		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb").value();
+
 		// Uniform Buff
 		m_UniformBuffers.resize(m_SwapchainImageCount);
 		for (auto& ub : m_UniformBuffers)
@@ -340,10 +346,11 @@ namespace hyper
 		double uboTime = glfwGetTime();
 		UniformBufferObject ubo{};
 		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		ubo.view = glm::translate(glm::vec3{ 0,0,-5 });
 		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
+		ubo.proj = glm::perspective(glm::radians(70.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 10000.0f, 0.1f);
 		ubo.proj[1][1] *= -1;
-
+		
 		void* bufferData;
 		vmaMapMemory(m_Allocator, m_UniformBuffers[currentFrame].Allocation, &bufferData);
 		memcpy(bufferData, &ubo, sizeof(ubo));
@@ -369,6 +376,12 @@ namespace hyper
 
 		DestroyImage(m_Allocator, m_TextureImage);
 		DestroyImage(m_Allocator, m_DepthImage);
+
+		for (std::shared_ptr<MeshAsset> meshAsset : testMeshes)
+		{
+			DestroyBuffer(m_Allocator, meshAsset->vertexBuffer);
+			DestroyBuffer(m_Allocator, meshAsset->indexBuffer);
+		}
 
 		vmaDestroyAllocator(m_Allocator);
 
@@ -475,8 +488,11 @@ namespace hyper
 		std::vector<vk::ClearValue> clearValues{ {{ 1.0f, 0.5f, 0.3f, 1.0f }}, {{ 1.0f, 0 }} };
 
 		PushConstantData pushConstants{};
-		pushConstants.color.r = 1.0f;
-		pushConstants.vertexBuffer = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
+		glm::mat4 view = glm::translate(glm::vec3{ 0,0,-5 });
+		glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)width / (float)height, 10000.f, 0.1f);
+		projection[1][1] *= -1; // invert the Y direction on projection matrix so that we are more similar to opengl and gltf axis
+		pushConstants.worldMatrix = projection * view;
+		pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
 
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
@@ -531,14 +547,14 @@ namespace hyper
 			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			m_CommandBuffers[i]->bindIndexBuffer(m_IndexBuffer.Buffer, 0, vk::IndexType::eUint16);
+			m_CommandBuffers[i]->bindIndexBuffer(testMeshes[2]->indexBuffer.Buffer, 0, vk::IndexType::eUint32);
 
 			m_CommandBuffers[i]->setViewport(0, 1, &viewport);
 			m_CommandBuffers[i]->setScissor(0, 1, &scissor);
 
 			m_CommandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_PipelineLayout, 0, 1, &m_DescriptorSets[i].get(), 0, nullptr);
 			m_CommandBuffers[i]->pushConstants(*m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData), &pushConstants);
-			m_CommandBuffers[i]->drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+			m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
 			m_CommandBuffers[i]->endRendering();
 

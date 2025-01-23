@@ -54,6 +54,20 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
+	Image CreateImageStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, int width, int height,
+		const void* data, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
+	{
+		Buffer buffer = CreateBuffer(allocator, width * height * 4, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		void* imageData;
+		vmaMapMemory(allocator, buffer.Allocation, &imageData);
+		memcpy(imageData, data, width * height * 4);
+		vmaUnmapMemory(allocator, buffer.Allocation);
+		Image image = CreateImage(allocator, device, width, height, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, width, height, image.Image);
+		DestroyBuffer(allocator, buffer);
+		return image;
+	}
+
 	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
 	{

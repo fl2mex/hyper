@@ -21,6 +21,9 @@ namespace hyper
 		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 proj;
+		glm::vec4 ambientColor;
+		glm::vec4 sunlightDirection;
+		glm::vec4 sunlightColor;
 	};
 	struct PushConstantData
 	{
@@ -51,7 +54,6 @@ namespace hyper
 			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 			{{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 		};
-
 		std::vector<uint32_t> indices
 		{
 			0, 1, 2, 2, 3, 0,
@@ -88,14 +90,15 @@ namespace hyper
 		uint32_t m_SwapchainImageCount{};
 		vk::UniqueSwapchainKHR m_Swapchain{};
 		std::vector<vk::Image> m_SwapchainImages{}; // Can this be turned unique as well?
-		std::vector<vk::UniqueImageView> m_ImageViews{};
+		std::vector<vk::UniqueImageView> m_SwapchainImageViews{};
 
-		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
 		vk::UniquePipelineLayout m_PipelineLayout{};
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
 
 		vk::UniqueCommandPool m_CommandPool{};
+		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
 
+		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
 		vk::UniqueDescriptorPool m_DescriptorPool{};
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
 
@@ -104,11 +107,15 @@ namespace hyper
 		std::vector<Buffer> m_UniformBuffers;
 		
 		Image m_TextureImage;
-		vk::UniqueSampler m_Sampler;
-
 		Image m_DepthImage;
 
-		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
+		Image m_WhiteImage;
+		Image m_BlackImage;
+		Image m_GreyImage;
+		Image m_ErrorCheckerboardImage;
+
+		vk::UniqueSampler m_LinearSampler;
+		vk::UniqueSampler m_NearestSampler;
 
 		vk::UniqueFence m_InFlightFence{};
 		vk::UniqueSemaphore m_ImageAvailableSemaphore{};

@@ -114,9 +114,9 @@ namespace hyper
 					vtx.color = glm::vec4(vtx.normal, 1.f);
 				}
 			}
-			newmesh.vertexBuffer = CreateBufferStaged(commandPool, device, queue, allocator, vertices.size() * sizeof(vertices[0]),
+			newmesh.vertexBuffer = CreateBufferStaged(allocator, commandPool, device, queue, vertices.size() * sizeof(vertices[0]),
 				vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vertices.data());
-			newmesh.indexBuffer = CreateBufferStaged(commandPool, device, queue, allocator, indices.size() * sizeof(indices[0]),
+			newmesh.indexBuffer = CreateBufferStaged(allocator, commandPool, device, queue, indices.size() * sizeof(indices[0]),
 				vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
 			meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newmesh)));
@@ -261,16 +261,41 @@ namespace hyper
 		m_TextureImage = CreateImageTexture(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
 
-		// Texture sampler
-		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
+		uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+		m_WhiteImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&white,
+			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
+
+		uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+		m_BlackImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&black,
+			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
+
+		uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+		m_GreyImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&grey,
+			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
+
+		uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+		std::array<uint32_t, 16 * 16 > pixels;
+		for (int x = 0; x < 16; x++) 
+			for (int y = 0; y < 16; y++) 
+				pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+		m_ErrorCheckerboardImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 16, 16, pixels.data(),
+			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
+
+
+		// Texture samplers
+		vk::SamplerCreateInfo linearSamplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
 			vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, {}, VK_TRUE,
 			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
-		m_Sampler = m_Device->createSamplerUnique(samplerInfo);
+		m_LinearSampler = m_Device->createSamplerUnique(linearSamplerInfo);
+		vk::SamplerCreateInfo nearestSamplerInfo{ {}, vk::Filter::eNearest, vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest,
+			vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, {}, VK_TRUE,
+			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
+		m_NearestSampler = m_Device->createSamplerUnique(nearestSamplerInfo);
 
 		// Buffs
-		m_VertexBuffer = CreateBufferStaged(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(vertices[0]) * vertices.size(),
+		m_VertexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(vertices[0]) * vertices.size(),
 			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer, vertices.data());
-		m_IndexBuffer = CreateBufferStaged(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, sizeof(indices[0]) * indices.size(),
+		m_IndexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(indices[0]) * indices.size(),
 			vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
 
 		vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
@@ -294,11 +319,10 @@ namespace hyper
 		vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo{ m_DescriptorPool.get(), static_cast<uint32_t>(m_SwapchainImageCount), layouts.data() };
 		m_DescriptorSets.resize(m_SwapchainImageCount);
 		m_DescriptorSets = m_Device->allocateDescriptorSetsUnique(descriptorSetAllocateInfo);
-
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
 			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
-			vk::DescriptorImageInfo imageInfo{ m_Sampler.get(), m_TextureImage.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
+			vk::DescriptorImageInfo imageInfo{ m_NearestSampler.get(), m_ErrorCheckerboardImage.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
@@ -345,10 +369,10 @@ namespace hyper
 		static double startTime = glfwGetTime();
 		double uboTime = glfwGetTime();
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.view = glm::translate(glm::vec3{ 0,0,-5 });
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(70.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 10000.0f, 0.1f);
+		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		//ubo.view = glm::translate(glm::vec3{ 0,0,-5 });
+		ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1;
 		
 		void* bufferData;
@@ -377,6 +401,11 @@ namespace hyper
 		DestroyImage(m_Allocator, m_TextureImage);
 		DestroyImage(m_Allocator, m_DepthImage);
 
+		DestroyImage(m_Allocator, m_WhiteImage);
+		DestroyImage(m_Allocator, m_BlackImage);
+		DestroyImage(m_Allocator, m_GreyImage);
+		DestroyImage(m_Allocator, m_ErrorCheckerboardImage);
+
 		for (std::shared_ptr<MeshAsset> meshAsset : testMeshes)
 		{
 			DestroyBuffer(m_Allocator, meshAsset->vertexBuffer);
@@ -401,7 +430,9 @@ namespace hyper
 		m_SwapchainExtent = vk::Extent2D{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
 		m_SwapchainImages.clear();
-		m_ImageViews.clear();
+		m_SwapchainImageViews.clear();
+
+		DestroyImage(m_Allocator, m_DepthImage);
 
 		m_Device->destroySwapchainKHR(m_Swapchain.get());
 		m_Swapchain.get() = VK_NULL_HANDLE;
@@ -439,13 +470,13 @@ namespace hyper
 
 		// Recreate images and image views
 		m_SwapchainImages = m_Device->getSwapchainImagesKHR(m_Swapchain.get());
-		m_ImageViews.reserve(m_SwapchainImages.size());
+		m_SwapchainImageViews.reserve(m_SwapchainImages.size());
 		for (vk::Image image : m_SwapchainImages)
 		{
 			vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image, vk::ImageViewType::e2D, m_SwapchainImageFormat,
 				vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA },
 				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-			m_ImageViews.push_back(m_Device->createImageViewUnique(imageViewCreateInfo));
+			m_SwapchainImageViews.push_back(m_Device->createImageViewUnique(imageViewCreateInfo));
 		}
 
 		// Recreate depth image
@@ -505,7 +536,7 @@ namespace hyper
 				m_SwapchainImages[i], vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
 			// Rendering info
-			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
+			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_SwapchainImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
 			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
@@ -528,16 +559,19 @@ namespace hyper
 			m_CommandBuffers[i]->setRasterizationSamplesEXT(vk::SampleCountFlagBits::e1, m_DLDI);
 			m_CommandBuffers[i]->setCullMode(vk::CullModeFlagBits::eNone);
 			m_CommandBuffers[i]->setFrontFace(vk::FrontFace::eCounterClockwise);
+
 			m_CommandBuffers[i]->setDepthTestEnable(1);
 			m_CommandBuffers[i]->setDepthWriteEnable(1);
 			m_CommandBuffers[i]->setDepthCompareOp(vk::CompareOp::eLess);
+			m_CommandBuffers[i]->setDepthBiasEnable(0);
+
 			m_CommandBuffers[i]->setColorBlendEnableEXT(0, { 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ }, m_DLDI);
 			m_CommandBuffers[i]->setColorBlendEquationEXT(0, { { vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd } }, m_DLDI);
 			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
 				| vk::ColorComponentFlagBits::eA, m_DLDI);
+
 			m_CommandBuffers[i]->setSampleMaskEXT(vk::SampleCountFlagBits::e1, 1, m_DLDI);
 			m_CommandBuffers[i]->setAlphaToCoverageEnableEXT(0, m_DLDI);
-			m_CommandBuffers[i]->setDepthBiasEnable(0);
 			m_CommandBuffers[i]->setStencilTestEnable(0);
 			m_CommandBuffers[i]->setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
 			m_CommandBuffers[i]->setPrimitiveRestartEnable(0);

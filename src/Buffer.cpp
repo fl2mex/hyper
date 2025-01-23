@@ -25,7 +25,7 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
-	Buffer CreateBufferStaged(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, VmaAllocator allocator, vk::DeviceSize size,
+	Buffer CreateBufferStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::DeviceSize size,
 		vk::BufferUsageFlags usage, const void* data)
 	{
 		Buffer buffer = CreateBuffer(allocator, size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);

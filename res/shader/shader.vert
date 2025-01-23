@@ -16,6 +16,9 @@ layout(binding = 0) uniform UniformBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
+	vec4 ambientColor;
+	vec4 sunlightDirection;
+	vec4 sunlightColor;
 } ubo;
 
 layout(push_constant) uniform PushConstants {

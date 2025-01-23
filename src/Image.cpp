@@ -58,10 +58,7 @@ namespace hyper
 		const void* data, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
 	{
 		Buffer buffer = CreateBuffer(allocator, width * height * 4, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		void* imageData;
-		vmaMapMemory(allocator, buffer.Allocation, &imageData);
-		memcpy(imageData, data, width * height * 4);
-		vmaUnmapMemory(allocator, buffer.Allocation);
+		memcpy(buffer.AllocationInfo.pMappedData, data, width * height * 4);
 		Image image = CreateImage(allocator, device, width, height, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
 		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, width, height, image.Image);
 		DestroyBuffer(allocator, buffer);
@@ -75,10 +72,7 @@ namespace hyper
 		stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
 		Buffer buffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		void* imageData;
-		vmaMapMemory(allocator, buffer.Allocation, &imageData);
-		memcpy(imageData, pixels, size);
-		vmaUnmapMemory(allocator, buffer.Allocation);
+		memcpy(buffer.AllocationInfo.pMappedData, pixels, size);
 		stbi_image_free(pixels);
 		Image image = CreateImage(allocator, device, texWidth, texHeight, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
 		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, texWidth, texHeight, image.Image);

@@ -18,7 +18,7 @@
 
 namespace hyper
 {
-	std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadModel(vk::CommandPool commandPool, vk::Device device, vk::Queue queue, VmaAllocator allocator,
+	static std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadModel(vk::CommandPool commandPool, vk::Device device, vk::Queue queue, VmaAllocator allocator,
 		std::filesystem::path filePath)
 	{
 		auto gltfFile = fastgltf::GltfDataBuffer::FromPath(filePath);
@@ -257,30 +257,15 @@ namespace hyper
 		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
 			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
-		// Texture
+		// Images
 		m_TextureImage = CreateImageTexture(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-
-		uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-		m_WhiteImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&white,
-			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-
-		uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-		m_BlackImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&black,
-			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-
-		uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-		m_GreyImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 1, 1, (void*)&grey,
-			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-
-		uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 		std::array<uint32_t, 16 * 16 > pixels;
 		for (int x = 0; x < 16; x++) 
 			for (int y = 0; y < 16; y++) 
-				pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+				pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? glm::packUnorm4x8(glm::vec4(1, 0, 1, 1)) : glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 		m_ErrorCheckerboardImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 16, 16, pixels.data(),
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-
 
 		// Texture samplers
 		vk::SamplerCreateInfo linearSamplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
@@ -292,17 +277,16 @@ namespace hyper
 			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
 		m_NearestSampler = m_Device->createSamplerUnique(nearestSamplerInfo);
 
-		// Buffs
-		m_VertexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(vertices[0]) * vertices.size(),
-			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer, vertices.data());
-		m_IndexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(indices[0]) * indices.size(),
-			vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
-
-		vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
+		// Buffers
+		//m_VertexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(vertices[0]) * vertices.size(),
+		//	vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer, vertices.data());
+		//m_IndexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(indices[0]) * indices.size(),
+		//	vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
+		//vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
 
 		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb").value();
 
-		// Uniform Buff
+		// Uniform Buffer
 		m_UniformBuffers.resize(m_SwapchainImageCount);
 		for (auto& ub : m_UniformBuffers)
 			ub = CreateBuffer(m_Allocator, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -370,15 +354,10 @@ namespace hyper
 		double uboTime = glfwGetTime();
 		UniformBufferObject ubo{};
 		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		//ubo.view = glm::translate(glm::vec3{ 0,0,-5 });
 		ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1;
-		
-		void* bufferData;
-		vmaMapMemory(m_Allocator, m_UniformBuffers[currentFrame].Allocation, &bufferData);
-		memcpy(bufferData, &ubo, sizeof(ubo));
-		vmaUnmapMemory(m_Allocator, m_UniformBuffers[currentFrame].Allocation);
+		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
 
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -393,17 +372,11 @@ namespace hyper
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 
-		DestroyBuffer(m_Allocator, m_VertexBuffer);
-		DestroyBuffer(m_Allocator, m_IndexBuffer);
 		for (auto& ub : m_UniformBuffers)
 			DestroyBuffer(m_Allocator, ub);
 
-		DestroyImage(m_Allocator, m_TextureImage);
 		DestroyImage(m_Allocator, m_DepthImage);
-
-		DestroyImage(m_Allocator, m_WhiteImage);
-		DestroyImage(m_Allocator, m_BlackImage);
-		DestroyImage(m_Allocator, m_GreyImage);
+		DestroyImage(m_Allocator, m_TextureImage);
 		DestroyImage(m_Allocator, m_ErrorCheckerboardImage);
 
 		for (std::shared_ptr<MeshAsset> meshAsset : testMeshes)
@@ -511,8 +484,7 @@ namespace hyper
 		vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
 		vk::Rect2D scissor{ { 0, 0 }, { (uint32_t)width, (uint32_t)height } };
 
-		// Vertex buffers
-		vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
+		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
 		vk::DeviceSize offsets[] = { 0 };
 
 		// Background colour
@@ -580,7 +552,7 @@ namespace hyper
 			vk::ShaderStageFlagBits stages[2]{ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment };
 			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
-			m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
+			//m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
 			m_CommandBuffers[i]->bindIndexBuffer(testMeshes[2]->indexBuffer.Buffer, 0, vk::IndexType::eUint32);
 
 			m_CommandBuffers[i]->setViewport(0, 1, &viewport);

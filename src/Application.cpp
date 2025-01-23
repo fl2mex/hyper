@@ -2,15 +2,17 @@
 
 namespace hyper
 {
-	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+	static bool keys[348] = { false };
+
+	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		{
-			glfwSetWindowShouldClose(window, GLFW_TRUE);
-		}
+		if (action == GLFW_PRESS)
+			keys[key] = true;
+		if (action == GLFW_RELEASE)
+			keys[key] = false;
 	}
 
-	static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
+	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
 		reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->GetRenderer().m_FramebufferResized = true;
 	}
@@ -21,9 +23,9 @@ namespace hyper
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // GLFW doesn't need to set this for vulkan
 		m_Window = glfwCreateWindow(m_Spec.Width, m_Spec.Height, m_Spec.Title.c_str(), nullptr, nullptr);
-		glfwSetKeyCallback(m_Window, key_callback);
+		glfwSetKeyCallback(m_Window, KeyCallback);
+		glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
 		glfwSetWindowUserPointer(m_Window, this);
-		glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
 
 		m_Renderer.SetupRenderer(m_Spec, m_Window); // Can't use constructors because it needs to be in order
 	}
@@ -33,6 +35,8 @@ namespace hyper
 		while (!glfwWindowShouldClose(m_Window))
 		{
 			glfwPollEvents();
+			if (keys[GLFW_KEY_ESCAPE])
+				glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
 			m_Renderer.DrawFrame(); // Can add more things later, like audio :)
 		}
 	}

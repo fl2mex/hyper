@@ -30,10 +30,7 @@ namespace hyper
 	{
 		Buffer buffer = CreateBuffer(allocator, size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
 		Buffer stagingBuffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-		void* bufferData;
-		vmaMapMemory(allocator, stagingBuffer.Allocation, &bufferData);
-		memcpy(bufferData, data, size);
-		vmaUnmapMemory(allocator, stagingBuffer.Allocation);
+		memcpy(stagingBuffer.AllocationInfo.pMappedData, data, size);
 		CopyBuffer(commandPool, device, deviceQueue, stagingBuffer, buffer, size);
 		DestroyBuffer(allocator, stagingBuffer);
 		return buffer;

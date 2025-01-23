@@ -43,23 +43,6 @@ namespace hyper
 	private:
 		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
-		std::vector<Vertex> vertices
-		{
-			{{-0.5f, -0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-			{{ 0.5f, -0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-			{{ 0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-			{{-0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-			{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-			{{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-		};
-		std::vector<uint32_t> indices
-		{
-			0, 1, 2, 2, 3, 0,
-			4, 5, 6, 6, 7, 4
-		};
-
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
 		
@@ -102,16 +85,10 @@ namespace hyper
 		vk::UniqueDescriptorPool m_DescriptorPool{};
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
 
-		Buffer m_VertexBuffer;
-		Buffer m_IndexBuffer;
 		std::vector<Buffer> m_UniformBuffers;
 		
-		Image m_TextureImage;
 		Image m_DepthImage;
-
-		Image m_WhiteImage;
-		Image m_BlackImage;
-		Image m_GreyImage;
+		Image m_TextureImage;
 		Image m_ErrorCheckerboardImage;
 
 		vk::UniqueSampler m_LinearSampler;

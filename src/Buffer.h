@@ -7,8 +7,8 @@ namespace hyper
 	struct Buffer
 	{
 		vk::Buffer Buffer;
-		VmaAllocation Allocation;
-		VmaAllocationInfo AllocationInfo;
+		VmaAllocation Allocation = 0;
+		VmaAllocationInfo AllocationInfo = {0};
 	};
 
 	Buffer CreateBuffer(VmaAllocator& allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage);

@@ -154,7 +154,7 @@ namespace hyper
 		// Images
 		m_TextureImage = CreateImageTexture(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
-		std::array<uint32_t, 16 * 16 > pixels;
+		std::array<uint32_t, 16 * 16 > pixels = { 0 };
 		for (int x = 0; x < 16; x++) 
 			for (int y = 0; y < 16; y++) 
 				pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? glm::packUnorm4x8(glm::vec4(1, 0, 1, 1)) : glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));

@@ -8,8 +8,8 @@ namespace hyper
 	{
 		vk::Image Image;
 		vk::ImageView ImageView;
-		VmaAllocation Allocation;
-		VmaAllocationInfo AllocationInfo;
+		VmaAllocation Allocation = 0;
+		VmaAllocationInfo AllocationInfo = { 0 };
 		vk::Extent2D Extent;
 		vk::Format Format;
 	};

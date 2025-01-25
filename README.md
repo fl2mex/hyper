@@ -12,7 +12,7 @@ I want to completely understand how the whole vulkan graphics pipeline works, so
 | <ul><li>- [x] Device Handling          | <ul><li>- [x] Image Class              | <ul><li>- [ ] Post-Processing           | 
 | <ul><li>- [x] Queues                   | <ul><li>- [ ] Mesh Class               | <ul><li>- [ ] Material System           |
 | <ul><li>- [x] Swapchain                | <ul><li>- [ ] Compute Shaders          | <ul><li>- [ ] Raytracing (maybe)        |
-| <ul><li>- [x] Buffers                  | <ul><li>- [ ] ImGUI Implementation     | <ul><li>- [ ] Meshlet Rendering (maybe) |
+| <ul><li>- [x] Buffers                  | <ul><li>- [x] ImGUI Implementation     | <ul><li>- [ ] Meshlet Rendering (maybe) |
 | <ul><li>- [x] Textures                 | <ul><li>- [ ] Instancing               |
 | <ul><li>- [ ] GLTF Loading             | <ul><li>- [ ] Multithreading           |
 |                                        | <ul><li>- [ ] Mipmaps                  |
@@ -22,6 +22,7 @@ I am using: <br>
 * [Vulkan-Hpp] as a C++ wrapper for the vulkan API
 * [stb_image] from stb for image loading
 * [VulkanMemoryAllocator] for memory management
+* [ImGui] for a simple GUI
 
 # Learning Resources used
 * [Vulkan Tutorial] for in-depth Vulkan setup
@@ -34,21 +35,22 @@ I am using: <br>
 * [Vulkan Minimal Example] for an example of unique handles
 # Building
 You can build this on Windows using the included Visual Studio 2022 solution. <br>
-I plan to one day learn [CMake] or [Premake], but until then, Windows FTW <br>
+I plan to one day use [CMake] or [Premake], but until then, VS2022 FTW <br>
 Builds may be found [here] sometimes, but I probably won't upload them too often until I am way later in development.
 # Licenses from the tools used
 It's probably a good idea to put the licenses of the tools used in this project here. <br>
 All code produced is under the GPL-3.0 License, except for the projects listed below: <br>
 * [GLFW] is licensed under the [zlib/libpng] license, and the license file is in [vendor/GLFW]. <br>
 * [stb_image] is both in the public domain ([Unlicense]) and underneath the [MIT License], and the license file is in [vendor/stb]. <br>
+* [ImGui] is licensed under the [MIT License], and the license file is in [vendor/imgui]. <br>
 * [Vulkan-Hpp] is licensed under the [Apache License 2.0], and the license is found online [here](https://github.com/KhronosGroup/Vulkan-Hpp/blob/main/LICENSE.txt). <br>
 * [VulkanMemoryAllocator] is licensed under the [MIT License], and the license is found online [here](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/master/LICENSE.txt). <br>
 # Good things to know/bookmark
-* [VkResult spec]
-* [VK_KHR_dynamic_rendering tutorial]
-* [VK_EXT_shader_object tutorial]
-* [Buffer device addersses in Vulkan and VMA]
-* [Managing bindless descriptors in Vulkan]
+* [VkResult spec] - Good to remember/check when finding errors
+* [VK_KHR_dynamic_rendering tutorial] - Used this extension early on, good stuff
+* [VK_EXT_shader_object tutorial] - Good, but only a 11% implementation rate on gpus
+* [Buffer device addresses in Vulkan and VMA] - Another good extension
+* [Managing bindless descriptors in Vulkan] - Not used yet
 
 
 [vk-bootstrap]: https://github.com/charles-lunarg/vk-bootstrap/
@@ -60,6 +62,7 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [Vulkan-Hpp]: https://github.com/KhronosGroup/Vulkan-Hpp/
 [stb_image]: https://github.com/nothings/stb/blob/master/stb_image.h
 [VulkanMemoryAllocator]: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[ImGui]: https://github.com/ocornut/imgui
 
 [Vulkan Tutorial]: https://vulkan-tutorial.com/
 [Vulkan Guide]: https://vkguide.dev/
@@ -76,6 +79,7 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 [Apache License 2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [vendor/GLFW]: vendor/GLFW/LICENSE.md
 [vendor/stb]: vendor/stb/LICENSE.txt
+[vendor/imgui]: vendor/imgui/LICENSE.txt
 
 [VkResult spec]: https://registry.khronos.org/vulkan/specs/latest/man/html/VkResult.html
 [VK_KHR_dynamic_rendering tutorial]: https://lesleylai.info/en/vk-khr-dynamic-rendering/

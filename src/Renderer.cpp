@@ -9,6 +9,10 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "imgui.h"
+#include "imgui_impl_vulkan.h"
+#include "imgui_impl_glfw.h"
+
 #include "Logger.h"
 #include "File.h"
 
@@ -16,10 +20,9 @@ namespace hyper
 {
 	void Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
 	{
+#pragma region StuffThatDoesntReallyNeedToBeTouchedOrSeenAfterBeingSetup
 		m_Spec = _spec;
 		m_Window = _window;
-#pragma region StuffThatDoesntReallyNeedToBeTouchedOrSeenAfterBeingSetup
-
 
 		vk::ApplicationInfo appInfo(m_Spec.Title.c_str(), m_Spec.ApiVersion, "hyper", m_Spec.ApiVersion, m_Spec.ApiVersion);
 
@@ -197,11 +200,31 @@ namespace hyper
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
 			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
-
+		
 		// Command buffers
-		m_CommandBuffers = m_Device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(m_CommandPool.get(), vk::CommandBufferLevel::ePrimary,
-			static_cast<uint32_t>(m_SwapchainImageCount)));
+		m_CommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary,
+			static_cast<uint32_t>(m_SwapchainImageCount) });
 		RecreateCommandBuffers();
+
+		// ImGui
+		vk::DescriptorPoolSize pool_sizes[] = { { vk::DescriptorType::eCombinedImageSampler, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE } };
+		vk::DescriptorPoolCreateInfo pool_info{ {}, 0, (uint32_t)IM_ARRAYSIZE(pool_sizes), pool_sizes };
+		for (vk::DescriptorPoolSize& pool_size : pool_sizes)
+			pool_info.maxSets += pool_size.descriptorCount;
+		m_ImGuiDescriptorPool = m_Device->createDescriptorPoolUnique(pool_info);
+
+		ImGui::CreateContext();
+		ImGui_ImplGlfw_InitForVulkan(m_Window, true);
+		ImGui_ImplVulkan_InitInfo imGuiInfo{ m_Instance.get(), m_PhysicalDevice, m_Device.get(), (uint32_t)graphicsQueueFamilyIndex, m_DeviceQueue,
+			m_ImGuiDescriptorPool.get(), nullptr, m_SwapchainImageCount, m_SwapchainImageCount, VK_SAMPLE_COUNT_1_BIT, nullptr, 0, 0, true,
+			vk::PipelineRenderingCreateInfo{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat } };
+		ImGui_ImplVulkan_Init(&imGuiInfo);
+		ImGui_ImplVulkan_CreateFontsTexture();
+
+		m_ImGuiCommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 });
+		m_ImGuiCommandBuffers[0]->begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
+		m_ImGuiCommandBuffers[0]->end();
 	}
 
 	void Renderer::DrawFrame()
@@ -233,6 +256,12 @@ namespace hyper
 		if (imageIndex.result == vk::Result::eErrorOutOfDateKHR || imageIndex.result == vk::Result::eSuboptimalKHR)
 			m_FramebufferResized = true;
 
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::ShowDemoWindow();
+
 		// Update UBO
 		static double startTime = glfwGetTime();
 		double uboTime = glfwGetTime();
@@ -242,6 +271,9 @@ namespace hyper
 		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1;
 		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
+
+		ImGui::Render();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
 
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -270,6 +302,10 @@ namespace hyper
 		}
 
 		vmaDestroyAllocator(m_Allocator);
+
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
 
 		Logger::logger->Log("Goodbye!");
 	}
@@ -358,7 +394,6 @@ namespace hyper
 
 	void Renderer::RecreateCommandBuffers()
 	{
-		// Dynamic state
 		int width = 0, height = 0;
 		glfwGetFramebufferSize(m_Window, &width, &height);
 		while (width == 0 || height == 0) {
@@ -371,7 +406,6 @@ namespace hyper
 		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
 		vk::DeviceSize offsets[] = { 0 };
 
-		// Background colour
 		std::vector<vk::ClearValue> clearValues{ {{ 1.0f, 0.5f, 0.3f, 1.0f }}, {{ 1.0f, 0 }} };
 
 		PushConstantData pushConstants{};

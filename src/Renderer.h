@@ -84,6 +84,9 @@ namespace hyper
 
 		vk::UniqueDescriptorPool m_DescriptorPool;
 
+		std::vector<vk::UniqueCommandBuffer> m_ImGuiCommandBuffers;
+		vk::UniqueDescriptorPool m_ImGuiDescriptorPool;
+
 		// Should be handled by the render object
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
 		vk::UniquePipelineLayout m_PipelineLayout;

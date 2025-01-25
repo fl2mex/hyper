@@ -217,7 +217,6 @@ namespace hyper
 		
 		if (m_Swapchain.Resized)
 		{
-			m_Device->waitIdle();
 			m_Swapchain.CreateSwapchain(2, vk::Format::eB8G8R8A8Unorm, { m_Spec.Width, m_Spec.Height }, m_Window, m_Device.get(),
 				m_GraphicsIndex, m_PresentIndex, m_Surface.get());
 			DestroyImage(m_Allocator, m_Device.get(), m_DepthImage);

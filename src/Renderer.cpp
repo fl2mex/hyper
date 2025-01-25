@@ -208,15 +208,6 @@ namespace hyper
 			nullptr, nullptr, m_SwapchainImageCount, m_SwapchainImageCount, VK_SAMPLE_COUNT_1_BIT, nullptr, 0, 2, true,
 			vk::PipelineRenderingCreateInfoKHR{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat } };
 		ImGui_ImplVulkan_Init(&imGuiInfo);
-		ImGui_ImplVulkan_CreateFontsTexture();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		ImGui::Render();
-		m_ImGuiCommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 });
-		m_ImGuiCommandBuffers[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eSimultaneousUse });
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
-		m_ImGuiCommandBuffers[0]->end();
-		m_DeviceQueue.submit(vk::SubmitInfo{ 0, nullptr, nullptr, 1, &m_ImGuiCommandBuffers[0].get(), 0, nullptr });
 		
 		// Command buffers
 		m_CommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary,
@@ -235,54 +226,16 @@ namespace hyper
 			frameCount = 0;
 			previousTime = currentTime;
 		}
-
+		
 		if (m_FramebufferResized)
 		{
-			m_Device->waitIdle();
 			RecreateSwapchain();
 			RecreateCommandBuffers();
 		}
 
 		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		static_cast<void>(m_Device->resetFences(1, &m_InFlightFence.get()));
-
-			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
-		
-		ImGuiIO& io = ImGui::GetIO();
-
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
-		{
-			static float f = 0.0f;
-			static int counter = 0;
-
-			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-			ImGui::Checkbox("Another Window", &show_another_window);
-
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
-
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-			ImGui::End();
-		}
-		if (show_another_window)
-		{
-			ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-			ImGui::Text("Hello from another window!");
-			if (ImGui::Button("Close Me"))
-				show_another_window = false;
-			ImGui::End();
-		}
-
+	
 		// Get next image
 		vk::ResultValue<uint32_t> imageIndex = m_Device->acquireNextImageKHR(m_Swapchain.get(), std::numeric_limits<uint64_t>::max(),
 			m_ImageAvailableSemaphore.get(), {});
@@ -299,13 +252,10 @@ namespace hyper
 		ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1;
 		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
-
-		ImGui::Render();
 		
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		std::vector<vk::CommandBuffer> buffersToSubmit{ m_CommandBuffers[imageIndex.value].get() };//, m_ImGuiCommandBuffers[0].get() };
-		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, (uint32_t)buffersToSubmit.size(), buffersToSubmit.data(),
+		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, 1, &m_CommandBuffers[imageIndex.value].get(),
 			1, &m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.get(), &imageIndex.value }));
@@ -340,6 +290,8 @@ namespace hyper
 
 	void Renderer::RecreateSwapchain()
 	{
+		m_Device->waitIdle();
+
 		m_FramebufferResized = false;
 		int width = 0, height = 0;
 		glfwGetFramebufferSize(m_Window, &width, &height);
@@ -462,7 +414,7 @@ namespace hyper
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, attachments, &depthAttachment };
 
 			// Actual command buffers
-			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{});
+			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{}); // vk::CommandBufferUsageFlagBits::eOneTimeSubmit // How to fix?
 			m_CommandBuffers[i]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput,
 				{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
 
@@ -507,6 +459,15 @@ namespace hyper
 			m_CommandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_PipelineLayout, 0, 1, &m_DescriptorSets[i].get(), 0, nullptr);
 			m_CommandBuffers[i]->pushConstants(*m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData), &pushConstants);
 			m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
+
+			ImGui_ImplVulkan_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
+			ImGui::ShowDemoWindow();
+
+			ImGui::Render();
+			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffers[i].get());
 
 			m_CommandBuffers[i]->endRendering();
 

@@ -14,7 +14,7 @@ namespace hyper
 
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
-		reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->GetRenderer().m_FramebufferResized = true;
+		reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->GetRenderer().SetFramebufferResized();
 	}
 
 	Application::Application(Spec _spec)

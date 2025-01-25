@@ -10,6 +10,7 @@
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
 
 #include "Spec.h"
+#include "Swapchain.h"
 #include "Buffer.h"
 #include "Image.h"
 #include "Mesh.h"
@@ -34,13 +35,10 @@ namespace hyper
 		void DrawFrame();
 		~Renderer();
 
-		bool m_FramebufferResized = false;
+		void SetFramebufferResized() { m_Swapchain.Resized = true; }
 
 	private:
 		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
-
-		void RecreateSwapchain();
-		void RecreateCommandBuffers();
 		
 		Spec m_Spec;
 		GLFWwindow* m_Window;
@@ -58,22 +56,16 @@ namespace hyper
 		
 		VmaAllocator m_Allocator;
 
-		vk::Queue m_DeviceQueue;
-		vk::Queue m_PresentQueue;
+		uint32_t m_GraphicsIndex, m_PresentIndex;
+		vk::Queue m_DeviceQueue, m_PresentQueue;
 
-		vk::Format m_SwapchainImageFormat;
-		vk::Extent2D m_SwapchainExtent;
-		uint32_t m_SwapchainImageCount;
-		vk::UniqueSwapchainKHR m_Swapchain;
-		std::vector<vk::Image> m_SwapchainImages; // Can this be turned unique as well?
-		std::vector<vk::UniqueImageView> m_SwapchainImageViews;
+		Swapchain m_Swapchain;
 
 		vk::UniqueCommandPool m_CommandPool;
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers;
 
 		vk::UniqueFence m_InFlightFence;
-		vk::UniqueSemaphore m_ImageAvailableSemaphore;
-		vk::UniqueSemaphore m_RenderFinishedSemaphore;
+		vk::UniqueSemaphore m_ImageAvailableSemaphore, m_RenderFinishedSemaphore;
 
 		vk::UniqueDescriptorPool m_DescriptorPool;
 
@@ -84,10 +76,7 @@ namespace hyper
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets;
 		std::vector<Buffer> m_UniformBuffers;
 		
-		Image m_DepthImage;
-		Image m_TextureImage;
-		Image m_ErrorCheckerboardImage;
-		vk::UniqueSampler m_LinearSampler;
-		vk::UniqueSampler m_NearestSampler;
+		Image m_DepthImage, m_TextureImage, m_ErrorCheckerboardImage;
+		vk::UniqueSampler m_LinearSampler, m_NearestSampler;
 	};
 }

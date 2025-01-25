@@ -25,6 +25,7 @@
     <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
+    <ClCompile Include="src\Swapchain.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui_demo.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui_draw.cpp" />
@@ -42,6 +43,7 @@
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Renderer.h" />
     <ClInclude Include="src\Spec.h" />
+    <ClInclude Include="src\Swapchain.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

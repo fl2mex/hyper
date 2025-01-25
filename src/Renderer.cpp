@@ -208,7 +208,7 @@ namespace hyper
 			nullptr, nullptr, m_SwapchainImageCount, m_SwapchainImageCount, VK_SAMPLE_COUNT_1_BIT, nullptr, 0, 2, true,
 			vk::PipelineRenderingCreateInfoKHR{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat } };
 		ImGui_ImplVulkan_Init(&imGuiInfo);
-		
+
 		// Command buffers
 		m_CommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary,
 			static_cast<uint32_t>(m_SwapchainImageCount) });
@@ -226,14 +226,15 @@ namespace hyper
 			frameCount = 0;
 			previousTime = currentTime;
 		}
+		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		
 		if (m_FramebufferResized)
 		{
+			m_Device->waitIdle();
 			RecreateSwapchain();
-			RecreateCommandBuffers();
 		}
+		RecreateCommandBuffers();
 
-		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		static_cast<void>(m_Device->resetFences(1, &m_InFlightFence.get()));
 	
 		// Get next image
@@ -290,8 +291,6 @@ namespace hyper
 
 	void Renderer::RecreateSwapchain()
 	{
-		m_Device->waitIdle();
-
 		m_FramebufferResized = false;
 		int width = 0, height = 0;
 		glfwGetFramebufferSize(m_Window, &width, &height);

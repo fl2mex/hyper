@@ -35,6 +35,16 @@ namespace hyper
 		while (!glfwWindowShouldClose(m_Window))
 		{
 			glfwPollEvents();
+
+			double currentTime = glfwGetTime();
+			frameCount++;
+			if (currentTime - previousTime >= 1.0)
+			{
+				glfwSetWindowTitle(m_Window, (m_Spec.Title + " | FPS: " + std::to_string(frameCount)).c_str());
+				frameCount = 0;
+				previousTime = currentTime;
+			}
+
 			if (keys[GLFW_KEY_ESCAPE])
 				glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
 			m_Renderer.DrawFrame(); // Can add more things later, like audio :)

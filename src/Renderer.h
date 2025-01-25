@@ -21,13 +21,9 @@ namespace hyper
 		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 proj;
-		glm::vec4 ambientColor;
-		glm::vec4 sunlightDirection;
-		glm::vec4 sunlightColor;
 	};
 	struct PushConstantData
 	{
-		glm::mat4 worldMatrix;
 		vk::DeviceAddress vertexBuffer;
 	};
 
@@ -46,12 +42,9 @@ namespace hyper
 		void RecreateSwapchain();
 		void RecreateCommandBuffers();
 		
-		uint32_t currentFrame = 0;
-		double previousTime = 0.0;
-		uint32_t frameCount = 0;
-
 		Spec m_Spec;
 		GLFWwindow* m_Window;
+		uint32_t currentFrame = 0;
 
 		vk::UniqueInstance m_Instance;
 

@@ -18,6 +18,9 @@ namespace hyper
 	private:
 		Spec m_Spec;
 
+		double previousTime = 0.0;
+		uint32_t frameCount = 0;
+
 		GLFWwindow* m_Window{};
 		Renderer m_Renderer;
 	};

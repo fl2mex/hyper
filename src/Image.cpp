@@ -6,13 +6,13 @@
 
 namespace hyper
 {
-	Image CreateImage(VmaAllocator allocator, vk::Device device, int width, int height, vk::Format format, vk::ImageTiling tiling,
+	Image CreateImage(VmaAllocator allocator, vk::Device device, vk::Extent2D extent, vk::Format format, vk::ImageTiling tiling,
 		vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		Image image;
 		image.Format = format;
-		image.Extent = vk::Extent2D{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-		vk::ImageCreateInfo imageInfo{ {}, vk::ImageType::e2D, format, { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 },
+		image.Extent = extent;
+		vk::ImageCreateInfo imageInfo{ {}, vk::ImageType::e2D, format, { extent.width, extent.height, 1 },
 		1, 1, vk::SampleCountFlagBits::e1, tiling, usage, vk::SharingMode::eExclusive };
 		VmaAllocationCreateInfo allocCreateInfo{ VMA_ALLOCATION_CREATE_MAPPED_BIT, memoryUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT };
 		vmaCreateImage(allocator, reinterpret_cast<VkImageCreateInfo*>(&imageInfo), &allocCreateInfo, reinterpret_cast<VkImage*>(&image.Image),
@@ -24,16 +24,44 @@ namespace hyper
 
 		vk::ImageViewCreateInfo imageViewCreateInfo{ {}, image.Image, vk::ImageViewType::e2D, format, {},
 		{ aspectFlag, 0, 1, 0, 1 } };
-		image.ImageView = device.createImageViewUnique(imageViewCreateInfo);
+		image.ImageView = device.createImageView(imageViewCreateInfo);
 		return image;
 	}
 
-	void CopyImage(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, int width, int height, vk::Image dst)
+	Image CreateImageStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Extent2D extent,
+		const void* data, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
+	{
+		Buffer buffer = CreateBuffer(allocator, extent.width * extent.height * 4, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		memcpy(buffer.AllocationInfo.pMappedData, data, extent.width * extent.height * 4);
+		Image image = CreateImage(allocator, device, extent, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst,
+			VMA_MEMORY_USAGE_GPU_ONLY);
+		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, extent, image.Image);
+		DestroyBuffer(allocator, buffer);
+		return image;
+	}
+
+	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
+	{
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
+		Buffer buffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		memcpy(buffer.AllocationInfo.pMappedData, pixels, size);
+		stbi_image_free(pixels);
+		Image image = CreateImage(allocator, device, { (uint32_t)texWidth, (uint32_t)texHeight }, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst,
+			VMA_MEMORY_USAGE_GPU_ONLY);
+		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, { (uint32_t)texWidth, (uint32_t)texHeight }, image.Image);
+		DestroyBuffer(allocator, buffer);
+		return image;
+	}
+
+	void CopyImage(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, vk::Extent2D extent, vk::Image dst)
 	{
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
 		std::vector<vk::UniqueCommandBuffer> commandBuffer = device.allocateCommandBuffersUnique(allocInfo);
 		vk::BufferImageCopy copyRegion{ 0, 0, 0, {vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, { 0, 0, 0 },
-			{ static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 } };
+			{ extent.width, extent.height, 1 } };
 
 		vk::ImageMemoryBarrier topImageMemoryBarrier{ vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
 			vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
@@ -54,34 +82,9 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
-	Image CreateImageStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, int width, int height,
-		const void* data, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
+	void DestroyImage(VmaAllocator allocator, vk::Device device, Image& image)
 	{
-		Buffer buffer = CreateBuffer(allocator, width * height * 4, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		memcpy(buffer.AllocationInfo.pMappedData, data, width * height * 4);
-		Image image = CreateImage(allocator, device, width, height, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
-		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, width, height, image.Image);
-		DestroyBuffer(allocator, buffer);
-		return image;
-	}
-
-	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
-		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
-	{
-		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth * texHeight * 4);
-		Buffer buffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		memcpy(buffer.AllocationInfo.pMappedData, pixels, size);
-		stbi_image_free(pixels);
-		Image image = CreateImage(allocator, device, texWidth, texHeight, format, tiling, usage | vk::ImageUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
-		CopyImage(commandPool, device, deviceQueue, buffer.Buffer, texWidth, texHeight, image.Image);
-		DestroyBuffer(allocator, buffer);
-		return image;
-	}
-
-	void DestroyImage(VmaAllocator allocator, Image& image)
-	{
+		device.destroyImageView(image.ImageView);
 		vmaDestroyImage(allocator, image.Image, image.Allocation);
 	}
 }

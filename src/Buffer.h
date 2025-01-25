@@ -12,8 +12,8 @@ namespace hyper
 	};
 
 	Buffer CreateBuffer(VmaAllocator allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void CopyBuffer(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size);
 	Buffer CreateBufferStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::DeviceSize size,
 		vk::BufferUsageFlags usage, const void* data);
+	void CopyBuffer(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size);
 	void DestroyBuffer(VmaAllocator allocator, Buffer& buffer);
 }

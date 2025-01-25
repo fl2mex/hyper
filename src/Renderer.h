@@ -51,51 +51,50 @@ namespace hyper
 		uint32_t frameCount = 0;
 
 		Spec m_Spec;
-		GLFWwindow* m_Window{};
+		GLFWwindow* m_Window;
 
-		vk::UniqueInstance m_Instance{};
-		
+		vk::UniqueInstance m_Instance;
+
 		vk::detail::DispatchLoaderDynamic m_DLDI;
-		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_DebugMessenger{};
+		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_DebugMessenger;
 
-		vk::UniqueSurfaceKHR m_Surface{};
+		vk::UniqueSurfaceKHR m_Surface;
 
-		vk::PhysicalDevice m_PhysicalDevice{};
-		vk::UniqueDevice m_Device{};
+		vk::PhysicalDevice m_PhysicalDevice;
+		vk::UniqueDevice m_Device;
 		
 		VmaAllocator m_Allocator;
 
-		vk::Queue m_DeviceQueue{};
-		vk::Queue m_PresentQueue{};
+		vk::Queue m_DeviceQueue;
+		vk::Queue m_PresentQueue;
 
-		vk::Format m_SwapchainImageFormat{};
-		vk::Extent2D m_SwapchainExtent{};
-		uint32_t m_SwapchainImageCount{};
-		vk::UniqueSwapchainKHR m_Swapchain{};
-		std::vector<vk::Image> m_SwapchainImages{}; // Can this be turned unique as well?
-		std::vector<vk::UniqueImageView> m_SwapchainImageViews{};
+		vk::Format m_SwapchainImageFormat;
+		vk::Extent2D m_SwapchainExtent;
+		uint32_t m_SwapchainImageCount;
+		vk::UniqueSwapchainKHR m_Swapchain;
+		std::vector<vk::Image> m_SwapchainImages; // Can this be turned unique as well?
+		std::vector<vk::UniqueImageView> m_SwapchainImageViews;
 
-		vk::UniquePipelineLayout m_PipelineLayout{};
-		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
+		vk::UniqueCommandPool m_CommandPool;
+		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers;
 
-		vk::UniqueCommandPool m_CommandPool{};
-		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers{};
-
-		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout{};
-		vk::UniqueDescriptorPool m_DescriptorPool{};
-		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets{};
+		vk::UniqueFence m_InFlightFence;
+		vk::UniqueSemaphore m_ImageAvailableSemaphore;
+		vk::UniqueSemaphore m_RenderFinishedSemaphore;
 
 		std::vector<Buffer> m_UniformBuffers;
+
+		// Should be handled by the render object
+		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
+		vk::UniquePipelineLayout m_PipelineLayout;
+		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout;
+		vk::UniqueDescriptorPool m_DescriptorPool;
+		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets;
 		
 		Image m_DepthImage;
 		Image m_TextureImage;
 		Image m_ErrorCheckerboardImage;
-
 		vk::UniqueSampler m_LinearSampler;
 		vk::UniqueSampler m_NearestSampler;
-
-		vk::UniqueFence m_InFlightFence{};
-		vk::UniqueSemaphore m_ImageAvailableSemaphore{};
-		vk::UniqueSemaphore m_RenderFinishedSemaphore{};
 	};
 }

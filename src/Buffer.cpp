@@ -12,6 +12,17 @@ namespace hyper
 		return buffer;
 	}
 
+	Buffer CreateBufferStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::DeviceSize size,
+		vk::BufferUsageFlags usage, const void* data)
+	{
+		Buffer buffer = CreateBuffer(allocator, size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
+		Buffer stagingBuffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+		memcpy(stagingBuffer.AllocationInfo.pMappedData, data, size);
+		CopyBuffer(commandPool, device, deviceQueue, stagingBuffer, buffer, size);
+		DestroyBuffer(allocator, stagingBuffer);
+		return buffer;
+	}
+
 	void CopyBuffer(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size)
 	{
 		vk::BufferCopy copyRegion{ 0, 0, size };
@@ -23,17 +34,6 @@ namespace hyper
 		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
 		deviceQueue.submit(submitInfo, nullptr);
 		deviceQueue.waitIdle();
-	}
-
-	Buffer CreateBufferStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::DeviceSize size,
-		vk::BufferUsageFlags usage, const void* data)
-	{
-		Buffer buffer = CreateBuffer(allocator, size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
-		Buffer stagingBuffer = CreateBuffer(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-		memcpy(stagingBuffer.AllocationInfo.pMappedData, data, size);
-		CopyBuffer(commandPool, device, deviceQueue, stagingBuffer, buffer, size);
-		DestroyBuffer(allocator, stagingBuffer);
-		return buffer;
 	}
 
 	void DestroyBuffer(VmaAllocator allocator, Buffer& buffer)

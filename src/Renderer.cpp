@@ -9,19 +9,17 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-
-
 #include "Logger.h"
 #include "File.h"
 
 namespace hyper
 {
-	
-
 	void Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
 	{
 		m_Spec = _spec;
 		m_Window = _window;
+#pragma region StuffThatDoesntReallyNeedToBeTouchedOrSeenAfterBeingSetup
+
 
 		vk::ApplicationInfo appInfo(m_Spec.Title.c_str(), m_Spec.ApiVersion, "hyper", m_Spec.ApiVersion, m_Spec.ApiVersion);
 
@@ -35,6 +33,7 @@ namespace hyper
 			glfwExtensionsVector.push_back(vk::EXTDebugUtilsExtensionName);
 			layers.push_back("VK_LAYER_KHRONOS_validation");
 		}
+
 		Logger::logger->Log("Extensions used: "); for (uint32_t i = 0; i < glfwExtensionCount; i++) Logger::logger->Log(" - " + std::string(glfwExtensions[i]));
 		Logger::logger->Log("Layers used: "); for (auto& l : layers) Logger::logger->Log(" - " + std::string(l));
 
@@ -112,12 +111,21 @@ namespace hyper
 		m_SwapchainExtent = vk::Extent2D{ m_Spec.Width, m_Spec.Height };
 		RecreateSwapchain(); // Also recreates image views, and depth buffer/stencil
 
+		// Command pool
+		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
+			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
+
+		// Fence and semaphores
+		m_InFlightFence = m_Device->createFenceUnique({ vk::FenceCreateFlagBits::eSignaled });
+		m_ImageAvailableSemaphore = m_Device->createSemaphoreUnique({});
+		m_RenderFinishedSemaphore = m_Device->createSemaphoreUnique({});
+#pragma endregion
+
 		// Descriptor set layout
 		vk::DescriptorSetLayoutBinding uboLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex };
 		vk::DescriptorSetLayoutBinding samplerLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment };
 		std::array<vk::DescriptorSetLayoutBinding, 2> bindings{ uboLayoutBinding, samplerLayoutBinding };
 		vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{ {}, static_cast<uint32_t>(bindings.size()), bindings.data() };
-
 		m_DescriptorSetLayout = m_Device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
 		// Pipeline layout
@@ -141,15 +149,6 @@ namespace hyper
 		vk::AttachmentReference colourAttachmentRef{ 0, vk::ImageLayout::eColorAttachmentOptimal };
 		vk::SubpassDescription subpass{ {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
 
-		// Fence and semaphores
-		m_InFlightFence = m_Device->createFenceUnique({ vk::FenceCreateFlagBits::eSignaled });
-		m_ImageAvailableSemaphore = m_Device->createSemaphoreUnique({});
-		m_RenderFinishedSemaphore = m_Device->createSemaphoreUnique({});
-
-		// Command pool
-		m_CommandPool = m_Device->createCommandPoolUnique({ { vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer },
-			static_cast<uint32_t>(graphicsQueueFamilyIndex) });
-
 		// Images
 		m_TextureImage = CreateImageTexture(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, "res/texture/texture.jpg",
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
@@ -157,27 +156,20 @@ namespace hyper
 		for (int x = 0; x < 16; x++) 
 			for (int y = 0; y < 16; y++) 
 				pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? glm::packUnorm4x8(glm::vec4(1, 0, 1, 1)) : glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-		m_ErrorCheckerboardImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, 16, 16, pixels.data(),
+		m_ErrorCheckerboardImage = CreateImageStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, { 16, 16 }, pixels.data(),
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
 
 		// Texture samplers
-		vk::SamplerCreateInfo linearSamplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
+		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
 			vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, {}, VK_TRUE,
 			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
-		m_LinearSampler = m_Device->createSamplerUnique(linearSamplerInfo);
-		vk::SamplerCreateInfo nearestSamplerInfo{ {}, vk::Filter::eNearest, vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest,
-			vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, {}, VK_TRUE,
-			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
-		m_NearestSampler = m_Device->createSamplerUnique(nearestSamplerInfo);
+		m_LinearSampler = m_Device->createSamplerUnique(samplerInfo);
+		samplerInfo.magFilter = vk::Filter::eNearest;
+		samplerInfo.minFilter = vk::Filter::eNearest;
+		m_NearestSampler = m_Device->createSamplerUnique(samplerInfo);
 
-		// Buffers
-		//m_VertexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(vertices[0]) * vertices.size(),
-		//	vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer, vertices.data());
-		//m_IndexBuffer = CreateBufferStaged(m_Allocator, m_CommandPool.get(), m_Device.get(), m_DeviceQueue, sizeof(indices[0]) * indices.size(),
-		//	vk::BufferUsageFlagBits::eIndexBuffer, indices.data());
-		//vk::DeviceAddress vertexBufferDeviceAddress = m_Device->getBufferAddress({ m_VertexBuffer.Buffer });
-
-		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb").value();
+		// Meshes
+		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb");
 
 		// Uniform Buffer
 		m_UniformBuffers.resize(m_SwapchainImageCount);
@@ -199,11 +191,10 @@ namespace hyper
 		for (size_t i = 0; i < m_SwapchainImageCount; i++)
 		{
 			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
-			vk::DescriptorImageInfo imageInfo{ m_NearestSampler.get(), m_ErrorCheckerboardImage.ImageView.get(), vk::ImageLayout::eShaderReadOnlyOptimal };
+			vk::DescriptorImageInfo imageInfo{ m_NearestSampler.get(), m_ErrorCheckerboardImage.ImageView, vk::ImageLayout::eShaderReadOnlyOptimal };
 			std::vector<vk::WriteDescriptorSet> descriptorWrites{
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
-
 			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
 
@@ -268,9 +259,9 @@ namespace hyper
 		for (auto& ub : m_UniformBuffers)
 			DestroyBuffer(m_Allocator, ub);
 
-		DestroyImage(m_Allocator, m_DepthImage);
-		DestroyImage(m_Allocator, m_TextureImage);
-		DestroyImage(m_Allocator, m_ErrorCheckerboardImage);
+		DestroyImage(m_Allocator, m_Device.get(), m_DepthImage);
+		DestroyImage(m_Allocator, m_Device.get(), m_TextureImage);
+		DestroyImage(m_Allocator, m_Device.get(), m_ErrorCheckerboardImage);
 
 		for (std::shared_ptr<MeshAsset> meshAsset : testMeshes)
 		{
@@ -298,7 +289,7 @@ namespace hyper
 		m_SwapchainImages.clear();
 		m_SwapchainImageViews.clear();
 
-		DestroyImage(m_Allocator, m_DepthImage);
+		DestroyImage(m_Allocator, m_Device.get(), m_DepthImage);
 
 		m_Device->destroySwapchainKHR(m_Swapchain.get());
 		m_Swapchain.get() = VK_NULL_HANDLE;
@@ -361,7 +352,7 @@ namespace hyper
 				break;
 			}
 		}
-		m_DepthImage = CreateImage(m_Allocator, m_Device.get(), m_SwapchainExtent.width, m_SwapchainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
+		m_DepthImage = CreateImage(m_Allocator, m_Device.get(), m_SwapchainExtent, depthFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 
@@ -403,7 +394,7 @@ namespace hyper
 			// Rendering info
 			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_SwapchainImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
-			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView.get(), vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
+			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView, vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
 
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_SwapchainExtent }, 1, {}, attachments, &depthAttachment };

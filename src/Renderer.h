@@ -82,14 +82,14 @@ namespace hyper
 		vk::UniqueSemaphore m_ImageAvailableSemaphore;
 		vk::UniqueSemaphore m_RenderFinishedSemaphore;
 
-		std::vector<Buffer> m_UniformBuffers;
+		vk::UniqueDescriptorPool m_DescriptorPool;
 
 		// Should be handled by the render object
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
 		vk::UniquePipelineLayout m_PipelineLayout;
 		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout;
-		vk::UniqueDescriptorPool m_DescriptorPool;
 		std::vector<vk::UniqueDescriptorSet> m_DescriptorSets;
+		std::vector<Buffer> m_UniformBuffers;
 		
 		Image m_DepthImage;
 		Image m_TextureImage;

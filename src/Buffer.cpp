@@ -2,7 +2,7 @@
 
 namespace hyper
 {
-	Buffer CreateBuffer(VmaAllocator allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+	Buffer CreateBuffer(VmaAllocator& allocator, vk::DeviceSize size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		vk::BufferCreateInfo bufferInfo{ {}, size, usage, vk::SharingMode::eExclusive };
 		VmaAllocationCreateInfo allocCreateInfo{ VMA_ALLOCATION_CREATE_MAPPED_BIT, memoryUsage };
@@ -12,7 +12,7 @@ namespace hyper
 		return buffer;
 	}
 
-	Buffer CreateBufferStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::DeviceSize size,
+	Buffer CreateBufferStaged(VmaAllocator& allocator, vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, vk::DeviceSize size,
 		vk::BufferUsageFlags usage, const void* data)
 	{
 		Buffer buffer = CreateBuffer(allocator, size, usage | vk::BufferUsageFlagBits::eTransferDst, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -23,7 +23,7 @@ namespace hyper
 		return buffer;
 	}
 
-	void CopyBuffer(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size)
+	void CopyBuffer(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size)
 	{
 		vk::BufferCopy copyRegion{ 0, 0, size };
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
@@ -36,7 +36,7 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
-	void DestroyBuffer(VmaAllocator allocator, Buffer& buffer)
+	void DestroyBuffer(VmaAllocator& allocator, Buffer& buffer)
 	{
 		vmaDestroyBuffer(allocator, buffer.Buffer, buffer.Allocation);
 	}

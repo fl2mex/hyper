@@ -42,7 +42,6 @@ namespace hyper
 		vk::PipelineLayout layout;
 		vk::DescriptorSet materialSet;
 	};
-
 	struct RenderObject
 	{
 		uint32_t indexCount;
@@ -67,7 +66,7 @@ namespace hyper
 		Buffer vertexBuffer;
 		Buffer indexBuffer;
 	};
-	static std::vector<std::shared_ptr<MeshAsset>> LoadModel(vk::CommandPool commandPool, vk::Device device, vk::Queue queue, VmaAllocator allocator,
+	static std::vector<std::shared_ptr<MeshAsset>> LoadModel(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& queue, VmaAllocator& allocator,
 		std::filesystem::path filePath)
 	{
 		auto gltfFile = fastgltf::GltfDataBuffer::FromPath(filePath);

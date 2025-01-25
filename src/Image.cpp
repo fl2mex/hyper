@@ -6,7 +6,7 @@
 
 namespace hyper
 {
-	Image CreateImage(VmaAllocator allocator, vk::Device device, vk::Extent2D extent, vk::Format format, vk::ImageTiling tiling,
+	Image CreateImage(VmaAllocator& allocator, vk::Device& device, vk::Extent2D extent, vk::Format format, vk::ImageTiling tiling,
 		vk::ImageUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		Image image;
@@ -28,7 +28,7 @@ namespace hyper
 		return image;
 	}
 
-	Image CreateImageStaged(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Extent2D extent,
+	Image CreateImageStaged(VmaAllocator& allocator, vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, vk::Extent2D extent,
 		const void* data, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
 	{
 		Buffer buffer = CreateBuffer(allocator, extent.width * extent.height * 4, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -40,7 +40,7 @@ namespace hyper
 		return image;
 	}
 
-	Image CreateImageTexture(VmaAllocator allocator, vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, std::string path,
+	Image CreateImageTexture(VmaAllocator& allocator, vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, std::string path,
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage)
 	{
 		int texWidth, texHeight, texChannels;
@@ -56,7 +56,7 @@ namespace hyper
 		return image;
 	}
 
-	void CopyImage(vk::CommandPool commandPool, vk::Device device, vk::Queue deviceQueue, vk::Buffer buffer, vk::Extent2D extent, vk::Image dst)
+	void CopyImage(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, vk::Buffer& buffer, vk::Extent2D extent, vk::Image& dst)
 	{
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
 		std::vector<vk::UniqueCommandBuffer> commandBuffer = device.allocateCommandBuffersUnique(allocInfo);
@@ -82,7 +82,7 @@ namespace hyper
 		deviceQueue.waitIdle();
 	}
 
-	void DestroyImage(VmaAllocator allocator, vk::Device device, Image& image)
+	void DestroyImage(VmaAllocator& allocator, vk::Device& device, Image& image)
 	{
 		device.destroyImageView(image.ImageView);
 		vmaDestroyImage(allocator, image.Image, image.Allocation);

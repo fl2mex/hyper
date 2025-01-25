@@ -200,31 +200,28 @@ namespace hyper
 				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
 			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
+
+		// ImGui
+		ImGui::CreateContext();
+		ImGui_ImplGlfw_InitForVulkan(m_Window, true);
+		ImGui_ImplVulkan_InitInfo imGuiInfo{ m_Instance.get(), m_PhysicalDevice, m_Device.get(), (uint32_t)graphicsQueueFamilyIndex, m_DeviceQueue,
+			nullptr, nullptr, m_SwapchainImageCount, m_SwapchainImageCount, VK_SAMPLE_COUNT_1_BIT, nullptr, 0, 2, true,
+			vk::PipelineRenderingCreateInfoKHR{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat } };
+		ImGui_ImplVulkan_Init(&imGuiInfo);
+		ImGui_ImplVulkan_CreateFontsTexture();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+		ImGui::Render();
+		m_ImGuiCommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 });
+		m_ImGuiCommandBuffers[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eSimultaneousUse });
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
+		m_ImGuiCommandBuffers[0]->end();
+		m_DeviceQueue.submit(vk::SubmitInfo{ 0, nullptr, nullptr, 1, &m_ImGuiCommandBuffers[0].get(), 0, nullptr });
 		
 		// Command buffers
 		m_CommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary,
 			static_cast<uint32_t>(m_SwapchainImageCount) });
 		RecreateCommandBuffers();
-
-		// ImGui
-		vk::DescriptorPoolSize pool_sizes[] = { { vk::DescriptorType::eCombinedImageSampler, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE } };
-		vk::DescriptorPoolCreateInfo pool_info{ {}, 0, (uint32_t)IM_ARRAYSIZE(pool_sizes), pool_sizes };
-		for (vk::DescriptorPoolSize& pool_size : pool_sizes)
-			pool_info.maxSets += pool_size.descriptorCount;
-		m_ImGuiDescriptorPool = m_Device->createDescriptorPoolUnique(pool_info);
-
-		ImGui::CreateContext();
-		ImGui_ImplGlfw_InitForVulkan(m_Window, true);
-		ImGui_ImplVulkan_InitInfo imGuiInfo{ m_Instance.get(), m_PhysicalDevice, m_Device.get(), (uint32_t)graphicsQueueFamilyIndex, m_DeviceQueue,
-			m_ImGuiDescriptorPool.get(), nullptr, m_SwapchainImageCount, m_SwapchainImageCount, VK_SAMPLE_COUNT_1_BIT, nullptr, 0, 0, true,
-			vk::PipelineRenderingCreateInfo{ 0, 1, &m_SwapchainImageFormat, vk::Format::eD32Sfloat } };
-		ImGui_ImplVulkan_Init(&imGuiInfo);
-		ImGui_ImplVulkan_CreateFontsTexture();
-
-		m_ImGuiCommandBuffers = m_Device->allocateCommandBuffersUnique({ m_CommandPool.get(), vk::CommandBufferLevel::ePrimary, 1 });
-		m_ImGuiCommandBuffers[0]->begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
-		m_ImGuiCommandBuffers[0]->end();
 	}
 
 	void Renderer::DrawFrame()
@@ -249,18 +246,49 @@ namespace hyper
 		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		static_cast<void>(m_Device->resetFences(1, &m_InFlightFence.get()));
 
+			ImGui_ImplVulkan_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+		
+		ImGuiIO& io = ImGui::GetIO();
+
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+		{
+			static float f = 0.0f;
+			static int counter = 0;
+
+			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Another Window", &show_another_window);
+
+			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+
+			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+				counter++;
+			ImGui::SameLine();
+			ImGui::Text("counter = %d", counter);
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+			ImGui::End();
+		}
+		if (show_another_window)
+		{
+			ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+			ImGui::Text("Hello from another window!");
+			if (ImGui::Button("Close Me"))
+				show_another_window = false;
+			ImGui::End();
+		}
+
 		// Get next image
 		vk::ResultValue<uint32_t> imageIndex = m_Device->acquireNextImageKHR(m_Swapchain.get(), std::numeric_limits<uint64_t>::max(),
 			m_ImageAvailableSemaphore.get(), {});
 
 		if (imageIndex.result == vk::Result::eErrorOutOfDateKHR || imageIndex.result == vk::Result::eSuboptimalKHR)
 			m_FramebufferResized = true;
-
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::ShowDemoWindow();
 
 		// Update UBO
 		static double startTime = glfwGetTime();
@@ -273,12 +301,12 @@ namespace hyper
 		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
 
 		ImGui::Render();
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ImGuiCommandBuffers[0].get());
-
+		
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, 1, &m_CommandBuffers[imageIndex.value].get(), 1,
-			&m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
+		std::vector<vk::CommandBuffer> buffersToSubmit{ m_CommandBuffers[imageIndex.value].get() };//, m_ImGuiCommandBuffers[0].get() };
+		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, (uint32_t)buffersToSubmit.size(), buffersToSubmit.data(),
+			1, &m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.get(), &imageIndex.value }));
 		currentFrame = (currentFrame + 1) % m_SwapchainImageCount;

@@ -50,6 +50,9 @@ namespace hyper
 		double previousTime = 0.0;
 		uint32_t frameCount = 0;
 
+		bool show_demo_window = true;
+		bool show_another_window = true;
+
 		Spec m_Spec;
 		GLFWwindow* m_Window;
 
@@ -85,7 +88,6 @@ namespace hyper
 		vk::UniqueDescriptorPool m_DescriptorPool;
 
 		std::vector<vk::UniqueCommandBuffer> m_ImGuiCommandBuffers;
-		vk::UniqueDescriptorPool m_ImGuiDescriptorPool;
 
 		// Should be handled by the render object
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;

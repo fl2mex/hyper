@@ -1,7 +1,8 @@
 #pragma once
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
+#define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <imgui.h>
@@ -41,12 +42,25 @@ namespace hyper
 
 		void ProcessInput(GLFWwindow* window, UserActions userActions, float cameraSpeed, float mouseSensitivity)
 		{
-			if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard)
-				return;
-
 			static glm::vec3 cameraZ = glm::vec3(0.0f, 0.0f, 1.0f);
 			static glm::vec3 cameraX = glm::vec3(1.0f, 0.0f, 0.0f);
 			static glm::vec3 worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
+
+			ProcessKeyboardInput(userActions, cameraSpeed, cameraZ, cameraX, worldUp);
+			ProcessMouseInput(window, userActions, mouseSensitivity, cameraZ, cameraX, worldUp);
+
+			cameraX = glm::normalize(glm::vec3{
+				cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+				sin(glm::radians(pitch)),
+				sin(glm::radians(yaw)) * cos(glm::radians(pitch)) });
+			cameraZ = glm::normalize(glm::cross(cameraX, glm::vec3(0.0f, 1.0f, 0.0f)));
+			worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
+		}
+
+		void ProcessKeyboardInput(UserActions userActions, float cameraSpeed, glm::vec3 cameraZ, glm::vec3 cameraX, glm::vec3 worldUp)
+		{
+			if (ImGui::GetIO().WantCaptureKeyboard)
+				return;
 
 			velocity = glm::vec3(0.0f);
 			float speed = cameraSpeed;
@@ -64,6 +78,12 @@ namespace hyper
 				velocity += worldUp * speed;
 			if (userActions.Keys[GLFW_KEY_E])
 				velocity += worldUp * -speed;
+		}
+
+		void ProcessMouseInput(GLFWwindow* window, UserActions userActions, float mouseSensitivity, glm::vec3 cameraZ, glm::vec3 cameraX, glm::vec3 worldUp)
+		{
+			if (ImGui::GetIO().WantCaptureMouse)
+				return;
 
 			static glm::vec2 lastMousePos;
 			float xOffset = userActions.MousePos[0] - lastMousePos.x;
@@ -74,17 +94,11 @@ namespace hyper
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 				yaw += xOffset * mouseSensitivity;
 				pitch += yOffset * mouseSensitivity;
-				glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
-
-				cameraX.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-				cameraX.y = sin(glm::radians(pitch));
-				cameraX.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-				cameraX = glm::normalize(cameraX);
-				cameraZ = glm::normalize(glm::cross(cameraX, glm::vec3(0.0f, 1.0f, 0.0f)));
-				worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
+				pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
 			}
 			else
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		}
+
 	};
 }

@@ -211,13 +211,15 @@ namespace hyper
 	{
 		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		
-		static double oldTimeStart = 0;
-		double timeSinceStart = glfwGetTime();
-		double deltaTime = timeSinceStart - oldTimeStart;
+		static float oldTimeStart = 0;
+		float timeSinceStart = glfwGetTime();
+		float deltaTime = timeSinceStart - oldTimeStart;
 		oldTimeStart = timeSinceStart;
 
+		static float cameraSpeed = 5.0f;
+		static float cameraSensitivity = 1 / 500.0f;
 		m_Camera.Update(deltaTime);
-		m_Camera.ProcessInput(m_Window, m_UserActions, 5.0f, 1/500.0f);
+		m_Camera.ProcessInput(m_Window, m_UserActions, cameraSpeed, cameraSensitivity);
 
 		if (m_Swapchain.Resized)
 		{
@@ -237,16 +239,29 @@ namespace hyper
 			ImGui::ShowDemoWindow();
 		}
 		static std::vector<vk::ClearValue> clearValues{ vk::ClearColorValue{ 1.0f, 0.5f, 0.3f, 1.0f }, vk::ClearColorValue{ 1.0f, 0.0f, 0.0f, 0.0f } };
-
-		{ // Custom window, change clear value
+		{ // Custom window
 			ImGui::Begin("Clear Colour");
-			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this???
+			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this??? vulkan explain????
 			ImGui::SliderFloat3("Camera Position", (float*)&m_Camera.position, -10.0f, 10.0f);
+			ImGui::SliderFloat("Camera Pitch", &m_Camera.pitch, -glm::half_pi<float>(), glm::half_pi<float>());
+			ImGui::SliderFloat("Camera Yaw", &m_Camera.yaw, -glm::two_pi<float>(), glm::two_pi<float>());
+			ImGui::SliderFloat("Camera Speed", &cameraSpeed, -1.0f, 10.0f);
+			ImGui::SliderFloat("Camera Sensitivity", &cameraSensitivity, 1/1000.0f, 1/20.0f);
 			ImGui::End();
 		}
 		
 		ImGui::Render();
 
+		// Update UBO
+		static uint32_t currentFrame = 0;
+		UniformBufferObject ubo{};
+		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(glfwGetTime()) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.view = m_Camera.GetViewMatrix();
+		ubo.proj = glm::perspective(glm::radians(70.0f), m_Swapchain.Extent.width / (float)m_Swapchain.Extent.height, 0.1f, 1000.0f);
+		ubo.proj[1][1] *= -1;
+		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
+		currentFrame = (currentFrame + 1) % m_Swapchain.ImageCount;
+		
 		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
 		//vk::DeviceSize offsets[] = { 0 };
 		PushConstantData pushConstants{};
@@ -326,29 +341,15 @@ namespace hyper
 		// Get next image
 		vk::ResultValue<uint32_t> imageIndex = m_Device->acquireNextImageKHR(m_Swapchain.ActualSwapchain.get(), std::numeric_limits<uint64_t>::max(),
 			m_ImageAvailableSemaphore.get(), {});
-
 		if (imageIndex.result == vk::Result::eErrorOutOfDateKHR || imageIndex.result == vk::Result::eSuboptimalKHR)
 			m_Swapchain.Resized = true;
 
-		// Update UBO
-		static uint32_t currentFrame = 0;
-		static double startTime = glfwGetTime();
-		double uboTime = glfwGetTime();
-		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.view = m_Camera.GetViewMatrix();
-		//ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.proj = glm::perspective(glm::radians(70.0f), m_Swapchain.Extent.width / (float)m_Swapchain.Extent.height, 0.1f, 1000.0f);
-		ubo.proj[1][1] *= -1;
-		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
-		
 		// Submit command buffer
 		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, 1, &m_CommandBuffers[imageIndex.value].get(),
 			1, &m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.ActualSwapchain.get(), &imageIndex.value }));
-		currentFrame = (currentFrame + 1) % m_Swapchain.ImageCount;
 	}
 
 	Renderer::~Renderer()	

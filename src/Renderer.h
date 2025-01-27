@@ -8,12 +8,16 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/transform.hpp>
 
 #include "Spec.h"
 #include "Swapchain.h"
 #include "Buffer.h"
 #include "Image.h"
 #include "Mesh.h"
+#include "UserActions.h"
+#include "Camera.h"
 
 namespace hyper
 {
@@ -36,13 +40,14 @@ namespace hyper
 		~Renderer();
 
 		void SetFramebufferResized() { m_Swapchain.Resized = true; }
+		UserActions m_UserActions;
 
 	private:
 		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 		
 		Spec m_Spec;
 		GLFWwindow* m_Window;
-		uint32_t currentFrame = 0;
+		Camera m_Camera;
 
 		vk::UniqueInstance m_Instance;
 

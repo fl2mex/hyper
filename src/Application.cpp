@@ -1,15 +1,29 @@
 #include "Application.h"
 
+#include "UserActions.h"
+
 namespace hyper
 {
-	static bool keys[348] = { false };
-
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
 		if (action == GLFW_PRESS)
-			keys[key] = true;
+			userActions.Keys[key] = true;
 		if (action == GLFW_RELEASE)
-			keys[key] = false;
+			userActions.Keys[key] = false;
+	}
+
+	static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+	{
+		if (action == GLFW_PRESS)
+			userActions.MouseButtons[button] = true;
+		if (action == GLFW_RELEASE)
+			userActions.MouseButtons[button] = false;
+	}
+
+	static void MousePosCallback(GLFWwindow* window, double xpos, double ypos)
+	{
+		userActions.MousePos[0] = xpos;
+		userActions.MousePos[1] = ypos;
 	}
 
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -24,9 +38,11 @@ namespace hyper
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // GLFW doesn't need to set this for vulkan
 		m_Window = glfwCreateWindow(m_Spec.Width, m_Spec.Height, m_Spec.Title.c_str(), nullptr, nullptr);
 		glfwSetKeyCallback(m_Window, KeyCallback);
+		glfwSetCursorPosCallback(m_Window, MousePosCallback);
+		glfwSetMouseButtonCallback(m_Window, MouseButtonCallback);
 		glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
 		glfwSetWindowUserPointer(m_Window, this);
-
+		
 		m_Renderer.SetupRenderer(m_Spec, m_Window); // Can't use constructors because it needs to be in order
 	}
 
@@ -45,8 +61,9 @@ namespace hyper
 				previousTime = currentTime;
 			}
 
-			if (keys[GLFW_KEY_ESCAPE])
+			if (userActions.Keys[GLFW_KEY_ESCAPE])
 				glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
+			m_Renderer.m_UserActions = userActions;
 			m_Renderer.DrawFrame(); // Can add more things later, like audio :)
 		}
 	}

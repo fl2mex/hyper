@@ -5,10 +5,6 @@
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/transform.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
@@ -215,6 +211,14 @@ namespace hyper
 	{
 		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		
+		static double oldTimeStart = 0;
+		double timeSinceStart = glfwGetTime();
+		double deltaTime = timeSinceStart - oldTimeStart;
+		oldTimeStart = timeSinceStart;
+
+		m_Camera.Update(deltaTime);
+		m_Camera.ProcessInput(m_Window, m_UserActions, 5.0f, 1/500.0f);
+
 		if (m_Swapchain.Resized)
 		{
 			m_Swapchain.CreateSwapchain(2, vk::Format::eB8G8R8A8Unorm, { m_Spec.Width, m_Spec.Height }, m_Window, m_Device.get(),
@@ -237,9 +241,10 @@ namespace hyper
 		{ // Custom window, change clear value
 			ImGui::Begin("Clear Colour");
 			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this???
+			ImGui::SliderFloat3("Camera Position", (float*)&m_Camera.position, -10.0f, 10.0f);
 			ImGui::End();
 		}
-
+		
 		ImGui::Render();
 
 		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
@@ -277,7 +282,7 @@ namespace hyper
 			m_CommandBuffers[i]->setRasterizerDiscardEnable(0);
 			m_CommandBuffers[i]->setPolygonModeEXT(vk::PolygonMode::eFill, m_DLDI);
 			m_CommandBuffers[i]->setRasterizationSamplesEXT(vk::SampleCountFlagBits::e1, m_DLDI);
-			m_CommandBuffers[i]->setCullMode(vk::CullModeFlagBits::eNone);
+			m_CommandBuffers[i]->setCullMode(vk::CullModeFlagBits::eBack);
 			m_CommandBuffers[i]->setFrontFace(vk::FrontFace::eCounterClockwise);
 
 			m_CommandBuffers[i]->setDepthTestEnable(1);
@@ -297,7 +302,6 @@ namespace hyper
 			m_CommandBuffers[i]->setPrimitiveRestartEnable(0);
 
 			m_CommandBuffers[i]->beginRendering(&renderingInfo);
-			vk::ShaderStageFlagBits stages[2];
 			m_CommandBuffers[i]->bindShadersEXT({ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment }, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			//m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets); // Using push constants atm, probably not for long
@@ -308,7 +312,6 @@ namespace hyper
 
 			m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
-			
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffers[i].get());
 
 			m_CommandBuffers[i]->endRendering();
@@ -328,12 +331,14 @@ namespace hyper
 			m_Swapchain.Resized = true;
 
 		// Update UBO
+		static uint32_t currentFrame = 0;
 		static double startTime = glfwGetTime();
 		double uboTime = glfwGetTime();
 		UniformBufferObject ubo{};
 		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(uboTime - startTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain.Extent.width / (float)m_Swapchain.Extent.height, 0.1f, 10.0f);
+		ubo.view = m_Camera.GetViewMatrix();
+		//ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.proj = glm::perspective(glm::radians(70.0f), m_Swapchain.Extent.width / (float)m_Swapchain.Extent.height, 0.1f, 1000.0f);
 		ubo.proj[1][1] *= -1;
 		memcpy(m_UniformBuffers[currentFrame].AllocationInfo.pMappedData, &ubo, sizeof(ubo));
 		

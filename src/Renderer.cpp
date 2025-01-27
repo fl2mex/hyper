@@ -225,24 +225,27 @@ namespace hyper
 			Logger::logger->Log("Swapchain rereated");
 		}
 
-		int width = 0, height = 0;
-		glfwGetFramebufferSize(m_Window, &width, &height);
-		while (width == 0 || height == 0)
-		{
-			glfwGetFramebufferSize(m_Window, &width, &height);
-			glfwWaitEvents();
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		{ // Demo window
+			ImGui::ShowDemoWindow();
 		}
-		vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
-		vk::Rect2D scissor{ { 0, 0 }, { static_cast<uint32_t>(width), static_cast<uint32_t>(height) } };
+		static std::vector<vk::ClearValue> clearValues{ vk::ClearColorValue{ 1.0f, 0.5f, 0.3f, 1.0f }, vk::ClearColorValue{ 1.0f, 0.0f, 0.0f, 0.0f } };
+
+		{ // Custom window, change clear value
+			ImGui::Begin("Clear Colour");
+			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this???
+			ImGui::End();
+		}
+
+		ImGui::Render();
 
 		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
-		vk::DeviceSize offsets[] = { 0 };
-
-		std::vector<vk::ClearValue> clearValues{ {{ 1.0f, 0.5f, 0.3f, 1.0f }}, {{ 1.0f, 0 }} };
-
+		//vk::DeviceSize offsets[] = { 0 };
 		PushConstantData pushConstants{};
 		pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
-
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
 			// Memory barriers for synchronisation
@@ -269,8 +272,8 @@ namespace hyper
 			std::vector<vk::VertexInputBindingDescription2EXT> bindings{ Vertex::getBindingDescription() };
 			m_CommandBuffers[i]->setVertexInputEXT(static_cast<uint32_t>(bindings.size()), bindings.data(),
 				static_cast<uint32_t>(Vertex::getAttributeDescriptions().size()), Vertex::getAttributeDescriptions().data(), m_DLDI);
-			m_CommandBuffers[i]->setViewportWithCount(viewport);
-			m_CommandBuffers[i]->setScissorWithCount(scissor);
+			m_CommandBuffers[i]->setViewportWithCount(vk::Viewport{ 0.0f, 0.0f, static_cast<float>(m_Swapchain.Extent.width), static_cast<float>(m_Swapchain.Extent.height), 0.0f, 1.0f });
+			m_CommandBuffers[i]->setScissorWithCount(vk::Rect2D{ { 0, 0 }, { m_Swapchain.Extent.width, m_Swapchain.Extent.height } });
 			m_CommandBuffers[i]->setRasterizerDiscardEnable(0);
 			m_CommandBuffers[i]->setPolygonModeEXT(vk::PolygonMode::eFill, m_DLDI);
 			m_CommandBuffers[i]->setRasterizationSamplesEXT(vk::SampleCountFlagBits::e1, m_DLDI);
@@ -283,7 +286,7 @@ namespace hyper
 			m_CommandBuffers[i]->setDepthBiasEnable(0);
 
 			m_CommandBuffers[i]->setColorBlendEnableEXT(0, { 1/*vk::BlendFactor::eOne*/, 0/*vk::BlendFactor::eZero*/, 1/*vk::BlendOp::eAdd*/ }, m_DLDI);
-			m_CommandBuffers[i]->setColorBlendEquationEXT(0, { { vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd } }, m_DLDI);
+			m_CommandBuffers[i]->setColorBlendEquationEXT(0, vk::ColorBlendEquationEXT{ vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd }, m_DLDI);
 			m_CommandBuffers[i]->setColorWriteMaskEXT(0, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
 				| vk::ColorComponentFlagBits::eA, m_DLDI);
 
@@ -294,26 +297,18 @@ namespace hyper
 			m_CommandBuffers[i]->setPrimitiveRestartEnable(0);
 
 			m_CommandBuffers[i]->beginRendering(&renderingInfo);
-			vk::ShaderStageFlagBits stages[2]{ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment };
-			m_CommandBuffers[i]->bindShadersEXT(stages, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
+			vk::ShaderStageFlagBits stages[2];
+			m_CommandBuffers[i]->bindShadersEXT({ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment }, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			//m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets); // Using push constants atm, probably not for long
 			m_CommandBuffers[i]->bindIndexBuffer(testMeshes[2]->indexBuffer.Buffer, 0, vk::IndexType::eUint32);
 
-			m_CommandBuffers[i]->setViewport(0, 1, &viewport);
-			m_CommandBuffers[i]->setScissor(0, 1, &scissor);
-
 			m_CommandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_PipelineLayout, 0, 1, &m_DescriptorSets[i].get(), 0, nullptr);
 			m_CommandBuffers[i]->pushConstants(*m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData), &pushConstants);
+
 			m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
-			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
-
-			ImGui::ShowDemoWindow();
-
-			ImGui::Render();
+			
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffers[i].get());
 
 			m_CommandBuffers[i]->endRendering();

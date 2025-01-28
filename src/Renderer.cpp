@@ -288,7 +288,7 @@ namespace hyper
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_Swapchain.Extent }, 1, {}, attachments, &depthAttachment };
 
 			// Actual command buffers
-			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{}); // vk::CommandBufferUsageFlagBits::eOneTimeSubmit // How to fix?
+			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 			m_CommandBuffers[i]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier2 });
 			// Get ready for the motherload of boilerplate from using ShaderEXT's
 			std::vector<vk::VertexInputBindingDescription2EXT> bindings{ Vertex::getBindingDescription() };
@@ -347,10 +347,9 @@ namespace hyper
 			m_Swapchain.Resized = true;
 
 		// Submit command buffer
-		vk::PipelineStageFlags2 waitStageMask = vk::PipelineStageFlagBits2::eNone;
-		vk::SemaphoreSubmitInfo waitSemaphoreInfo{ m_ImageAvailableSemaphore.get(), {}, waitStageMask };
+		vk::SemaphoreSubmitInfo waitSemaphoreInfo{ m_ImageAvailableSemaphore.get(), {}, vk::PipelineStageFlagBits2::eNone };
 		vk::CommandBufferSubmitInfo commandBufferInfo{ m_CommandBuffers[imageIndex.value].get() };
-		vk::SemaphoreSubmitInfo signalSemaphoreInfo{ m_RenderFinishedSemaphore.get(), {}, waitStageMask };
+		vk::SemaphoreSubmitInfo signalSemaphoreInfo{ m_RenderFinishedSemaphore.get(), {}, vk::PipelineStageFlagBits2::eNone };
 		m_DeviceQueue.submit2({ vk::SubmitInfo2{ {}, 1, &waitSemaphoreInfo, 1, &commandBufferInfo, 1, &signalSemaphoreInfo } }, m_InFlightFence.get());
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.ActualSwapchain.get(), &imageIndex.value }));
@@ -358,10 +357,10 @@ namespace hyper
 
 	Renderer::~Renderer()
 	{
-		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
+		m_Device->waitIdle();
 
 		for (auto& ub : m_UniformBuffers)
-			DestroyBuffer(m_Allocator, ub);
+			DestroyBuffer(m_Allocator, ub); // Eventually want to figure out a way to fit these inside unique pointers so they also descope automatically :D
 
 		DestroyImage(m_Allocator, m_Device.get(), m_DepthImage);
 		DestroyImage(m_Allocator, m_Device.get(), m_TextureImage);

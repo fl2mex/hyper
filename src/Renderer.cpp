@@ -32,6 +32,8 @@ namespace hyper
 			glfwExtensionsVector.push_back(vk::EXTDebugUtilsExtensionName);
 			layers.push_back("VK_LAYER_KHRONOS_validation");
 		}
+		layers.push_back("VK_LAYER_KHRONOS_shader_object"); // shader object emulation fallback
+		layers.push_back("VK_LAYER_KHRONOS_synchronization2"); // they shouldn't run if the extensions are available
 
 		Logger::logger->Log("Extensions used: "); for (uint32_t i = 0; i < glfwExtensionCount; i++) Logger::logger->Log(" - " + std::string(glfwExtensions[i]));
 		Logger::logger->Log("Layers used: "); for (auto& l : layers) Logger::logger->Log(" - " + std::string(l));

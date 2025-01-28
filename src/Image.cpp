@@ -22,8 +22,10 @@ namespace hyper
 		if (format == vk::Format::eD32Sfloat)
 			aspectFlag = vk::ImageAspectFlagBits::eDepth;
 
+		vk::ImageViewUsageCreateInfo imageViewUsageCreateInfo{ usage };
 		vk::ImageViewCreateInfo imageViewCreateInfo{ {}, image.Image, vk::ImageViewType::e2D, format, {},
-		{ aspectFlag, 0, 1, 0, 1 } };
+		{ aspectFlag, 0, 1, 0, 1 }, &imageViewUsageCreateInfo };
+
 		image.ImageView = device.createImageView(imageViewCreateInfo);
 		return image;
 	}
@@ -63,19 +65,19 @@ namespace hyper
 		vk::BufferImageCopy copyRegion{ 0, 0, 0, {vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, { 0, 0, 0 },
 			{ extent.width, extent.height, 1 } };
 
-		vk::ImageMemoryBarrier topImageMemoryBarrier{ vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
-			vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-			dst, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-		vk::ImageMemoryBarrier bottomImageMemoryBarrier{ vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
-			vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-			dst, vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+		vk::ImageMemoryBarrier2 topImageMemoryBarrier2{ vk::PipelineStageFlagBits2::eTopOfPipe, vk::AccessFlagBits2::eNone,
+			vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite, vk::ImageLayout::eUndefined,
+			vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, dst,
+			vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+		vk::ImageMemoryBarrier2 bottomImageMemoryBarrier2{ vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
+			vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead, vk::ImageLayout::eTransferDstOptimal,
+			vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, dst,
+			vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
 		commandBuffer[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-		commandBuffer[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer,
-			{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
+		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier2 });
 		commandBuffer[0]->copyBufferToImage(buffer, dst, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
-		commandBuffer[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
-			{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
+		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier2 });
 		commandBuffer[0]->end();
 		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
 		deviceQueue.submit(submitInfo, nullptr);

@@ -83,13 +83,14 @@ namespace hyper
 
 		// Logical device
 		const std::vector<const char*> deviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRDynamicRenderingExtensionName,
-			vk::EXTShaderObjectExtensionName, vk::KHRBufferDeviceAddressExtensionName };//, vk::EXTDescriptorIndexingExtensionName }; // For later
+			vk::EXTShaderObjectExtensionName, vk::KHRBufferDeviceAddressExtensionName, vk::KHRSynchronization2ExtensionName };//, vk::EXTDescriptorIndexingExtensionName }; // For later
 		Logger::logger->Log("Device extensions used: "); for (auto& e : deviceExtensions) Logger::logger->Log(" - " + std::string(e));
 		
 		vk::PhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		//vk::PhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = vk::PhysicalDeviceDescriptorIndexingFeatures(); // For later
-		vk::PhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures = vk::PhysicalDeviceBufferDeviceAddressFeatures(1, {}, {});// , & descriptorIndexingFeatures);  // For later
+		vk::PhysicalDeviceSynchronization2Features synchronization2Features = vk::PhysicalDeviceSynchronization2Features(1); // , & descriptorIndexingFeatures);  // For later
+		vk::PhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures = vk::PhysicalDeviceBufferDeviceAddressFeatures(1, {}, {}, &synchronization2Features);
 		vk::PhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1, &bufferAddressFeatures);
 		vk::PhysicalDeviceDynamicRenderingFeatures dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeatures(1, &shaderObjectFeatures);
 		m_Device = m_PhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()),
@@ -268,26 +269,27 @@ namespace hyper
 		pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
-			// Memory barriers for synchronisation
-			vk::ImageMemoryBarrier topImageMemoryBarrier{ vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-				m_Swapchain.Images[i], vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-			vk::ImageMemoryBarrier bottomImageMemoryBarrier{ vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead,
-				vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-				m_Swapchain.Images[i], vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+			// Synchronisation2 barriers
+			vk::ImageMemoryBarrier2 topImageMemoryBarrier2{ vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone,
+				vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::AccessFlagBits2::eColorAttachmentWrite,
+				vk::ImageLayout::eUndefined, vk::ImageLayout::eAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, m_Swapchain.Images[i],
+				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+			vk::ImageMemoryBarrier2 bottomImageMemoryBarrier2{ vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::AccessFlagBits2::eColorAttachmentWrite,
+				vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone,
+				vk::ImageLayout::eAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, m_Swapchain.Images[i],
+				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
-			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_Swapchain.ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimalKHR, {},{},{}, // Colour
+
+			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_Swapchain.ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimal, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
-			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView, vk::ImageLayout::eDepthStencilAttachmentOptimal, {}, {}, {}, // Depth
+			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView, vk::ImageLayout::eAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
 
 			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_Swapchain.Extent }, 1, {}, attachments, &depthAttachment };
 
 			// Actual command buffers
 			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{}); // vk::CommandBufferUsageFlagBits::eOneTimeSubmit // How to fix?
-			m_CommandBuffers[i]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				{}, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier);
-
+			m_CommandBuffers[i]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier2 });
 			// Get ready for the motherload of boilerplate from using ShaderEXT's
 			std::vector<vk::VertexInputBindingDescription2EXT> bindings{ Vertex::getBindingDescription() };
 			m_CommandBuffers[i]->setVertexInputEXT(static_cast<uint32_t>(bindings.size()), bindings.data(),
@@ -331,8 +333,8 @@ namespace hyper
 
 			m_CommandBuffers[i]->endRendering();
 
-			m_CommandBuffers[i]->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe,
-				{}, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier);
+			m_CommandBuffers[i]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier2 });
+
 			m_CommandBuffers[i]->end();
 		}
 
@@ -345,14 +347,16 @@ namespace hyper
 			m_Swapchain.Resized = true;
 
 		// Submit command buffer
-		vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		m_DeviceQueue.submit(vk::SubmitInfo{ 1, &m_ImageAvailableSemaphore.get(), &waitStageMask, 1, &m_CommandBuffers[imageIndex.value].get(),
-			1, &m_RenderFinishedSemaphore.get() }, m_InFlightFence.get());
+		vk::PipelineStageFlags2 waitStageMask = vk::PipelineStageFlagBits2::eNone;
+		vk::SemaphoreSubmitInfo waitSemaphoreInfo{ m_ImageAvailableSemaphore.get(), {}, waitStageMask };
+		vk::CommandBufferSubmitInfo commandBufferInfo{ m_CommandBuffers[imageIndex.value].get() };
+		vk::SemaphoreSubmitInfo signalSemaphoreInfo{ m_RenderFinishedSemaphore.get(), {}, waitStageMask };
+		m_DeviceQueue.submit2({ vk::SubmitInfo2{ {}, 1, &waitSemaphoreInfo, 1, &commandBufferInfo, 1, &signalSemaphoreInfo } }, m_InFlightFence.get());
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.ActualSwapchain.get(), &imageIndex.value }));
 	}
 
-	Renderer::~Renderer()	
+	Renderer::~Renderer()
 	{
 		m_Device->waitIdle(); // Everything will descope automatically due to unique pointers
 

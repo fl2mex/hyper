@@ -25,11 +25,21 @@ namespace hyper
 
 	void CopyBuffer(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, Buffer& src, Buffer& dst, vk::DeviceSize size)
 	{
-		vk::BufferCopy copyRegion{ 0, 0, size };
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
 		std::vector<vk::UniqueCommandBuffer> commandBuffer = device.allocateCommandBuffersUnique(allocInfo);
+		vk::BufferCopy copyRegion{ 0, 0, size };
+
+		vk::BufferMemoryBarrier2 topBufferMemoryBarrier2{ vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone,
+			vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+			src.Buffer, 0, size };
+		vk::BufferMemoryBarrier2 bottomBufferMemoryBarrier2{ vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
+			vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+			dst.Buffer, 0, size };
+
 		commandBuffer[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 1, &topBufferMemoryBarrier2 });
 		commandBuffer[0]->copyBuffer(src.Buffer, dst.Buffer, 1, &copyRegion);
+		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 1, &bottomBufferMemoryBarrier2 });
 		commandBuffer[0]->end();
 		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
 		deviceQueue.submit(submitInfo, nullptr);

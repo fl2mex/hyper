@@ -51,7 +51,10 @@ All code produced is under the GPL-3.0 License, except for the projects listed b
 * [VK_EXT_shader_object tutorial] - Good, but only a 11% implementation rate on gpus
 * [Buffer device addresses in Vulkan and VMA] - Another good extension
 * [Managing bindless descriptors in Vulkan] - Not used yet
-
+# Known Problems
+* Some Intel GPUs do not support nearest sampling, unknown why
+* ImGui not rendering on devices that rely on the ShaderEXT emulation fallback
+* If anyone finds more problems or bugs, please create an issue.
 
 [vk-bootstrap]: https://github.com/charles-lunarg/vk-bootstrap/
 [CMake]: https://cmake.org/

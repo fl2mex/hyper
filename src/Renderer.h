@@ -82,6 +82,6 @@ namespace hyper
 		std::vector<Buffer> m_UniformBuffers;
 		
 		Image m_DepthImage, m_TextureImage, m_ErrorCheckerboardImage;
-		vk::UniqueSampler m_LinearSampler, m_NearestSampler;
+		vk::UniqueSampler m_NearestSampler, m_LinearSampler;
 	};
 }

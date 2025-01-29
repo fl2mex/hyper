@@ -147,7 +147,7 @@ namespace hyper
 
 		vk::AttachmentDescription colorAttachment{ {}, m_Swapchain.ImageFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear,
 			vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
-		vk::AttachmentReference colourAttachmentRef{ 0, vk::ImageLayout::eColorAttachmentOptimal };
+		vk::AttachmentReference colourAttachmentRef{ 0, vk::ImageLayout::eAttachmentOptimal };
 		vk::SubpassDescription subpass{ {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
 
 		// Images
@@ -161,13 +161,13 @@ namespace hyper
 			vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled);
 
 		// Texture samplers
-		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
+		vk::SamplerCreateInfo samplerInfo{ {}, vk::Filter::eNearest, vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest,
 			vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, {}, VK_TRUE,
 			m_PhysicalDevice.getProperties().limits.maxSamplerAnisotropy, VK_FALSE, vk::CompareOp::eAlways, {}, {}, vk::BorderColor::eIntOpaqueBlack, VK_FALSE };
-		m_LinearSampler = m_Device->createSamplerUnique(samplerInfo);
-		samplerInfo.magFilter = vk::Filter::eNearest;
-		samplerInfo.minFilter = vk::Filter::eNearest;
 		m_NearestSampler = m_Device->createSamplerUnique(samplerInfo);
+		samplerInfo.magFilter = vk::Filter::eLinear;
+		samplerInfo.minFilter = vk::Filter::eLinear;
+		m_LinearSampler = m_Device->createSamplerUnique(samplerInfo);
 
 		// Meshes
 		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb");
@@ -188,15 +188,6 @@ namespace hyper
 		vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo{ m_DescriptorPool.get(), static_cast<uint32_t>(m_Swapchain.ImageCount), layouts.data() };
 		m_DescriptorSets.resize(m_Swapchain.ImageCount);
 		m_DescriptorSets = m_Device->allocateDescriptorSetsUnique(descriptorSetAllocateInfo);
-		for (size_t i = 0; i < m_Swapchain.ImageCount; i++)
-		{
-			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
-			vk::DescriptorImageInfo imageInfo{ m_NearestSampler.get(), m_ErrorCheckerboardImage.ImageView, vk::ImageLayout::eShaderReadOnlyOptimal };
-			std::vector<vk::WriteDescriptorSet> descriptorWrites{
-				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
-				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo }	};
-			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-		}
 
 		// ImGui
 		ImGui::CreateContext();
@@ -242,6 +233,7 @@ namespace hyper
 			ImGui::ShowDemoWindow();
 		}
 		static std::vector<vk::ClearValue> clearValues{ vk::ClearColorValue{ 1.0f, 0.5f, 0.3f, 1.0f }, vk::ClearColorValue{ 1.0f, 0.0f, 0.0f, 0.0f } };
+		static bool nearestSampler = true;
 		{ // Custom window
 			ImGui::Begin("Clear Colour");
 			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this??? vulkan explain????
@@ -250,10 +242,21 @@ namespace hyper
 			ImGui::SliderFloat("Camera Yaw", &m_Camera.yaw, -glm::two_pi<float>(), glm::two_pi<float>());
 			ImGui::SliderFloat("Camera Speed", &cameraSpeed, -1.0f, 10.0f);
 			ImGui::SliderFloat("Camera Sensitivity", &cameraSensitivity, 1/1000.0f, 1/20.0f);
+			ImGui::Checkbox("Nearest Sampler", &nearestSampler);
 			ImGui::End();
 		}
-		
 		ImGui::Render();
+
+		for (size_t i = 0; i < m_Swapchain.ImageCount; i++)
+		{
+			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
+			vk::DescriptorImageInfo imageInfo{ nearestSampler ? m_NearestSampler.get() : m_LinearSampler.get(),
+				m_ErrorCheckerboardImage.ImageView, vk::ImageLayout::eReadOnlyOptimal };
+			std::vector<vk::WriteDescriptorSet> descriptorWrites{
+				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo },
+				vk::WriteDescriptorSet{ m_DescriptorSets[i].get(), 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo } };
+			m_Device->updateDescriptorSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+		}
 
 		// Update UBO
 		static uint32_t currentFrame = 0;

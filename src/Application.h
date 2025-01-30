@@ -14,7 +14,7 @@ namespace hyper
 		void Run();
 		~Application();
 
-		Renderer& GetRenderer() { return m_Renderer; }
+		Renderer* GetRenderer() { return &m_Renderer; } // Pointer so hopefully i'm not copying 7 KILOBYTES of data every resize
 	private:
 		Spec m_Spec;
 

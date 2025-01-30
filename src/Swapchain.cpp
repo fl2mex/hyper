@@ -2,28 +2,29 @@
 
 namespace hyper
 {
-	void Swapchain::CreateSwapchain(uint32_t count, vk::Format format, vk::Extent2D extent, GLFWwindow* window, vk::Device device, uint32_t graphicsIndex, uint32_t presentIndex, vk::SurfaceKHR surface)
+	void Swapchain::CreateSwapchain(uint32_t count, vk::Format format, vk::Extent2D extent, GLFWwindow* window, vk::Device device,
+		uint32_t graphicsIndex, uint32_t presentIndex, vk::SurfaceKHR surface)
 	{
-		Resized = false;
+		Resized = false; // Not a class, so can't do the member initializer list underneath the function definition
 		ImageCount = count;
 		ImageFormat = format;
 		Extent = extent;
 
 		int width = 0, height = 0;
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(window, &width, &height); // Putting this twice makes the window not lag
 		while (width == 0 || height == 0)
 		{
 			glfwGetFramebufferSize(window, &width, &height);
-			glfwWaitEvents();
+			glfwWaitEvents(); // When multithreading, this won't lag as hard, hopefully
 		}
 		Extent = vk::Extent2D{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
-		OldSwapchain = std::move(ActualSwapchain);
+		OldSwapchain = std::move(ActualSwapchain); // Should help with smooth resizing, but need to implement multithreading first
 		Images.clear();
 		ImageViews.clear();
 
-		std::vector<uint32_t> familyIndices{ static_cast<uint32_t>(graphicsIndex) };
-		if (graphicsIndex != presentIndex)
+		std::vector<uint32_t> familyIndices{ static_cast<uint32_t>(graphicsIndex) };	// The next three blocks of code is repeated in the renderer class,
+		if (graphicsIndex != presentIndex)												// I could maybe pass in the vector?
 			familyIndices.push_back(static_cast<uint32_t>(presentIndex));
 
 		vk::SharingMode sharingMode = vk::SharingMode::eExclusive;

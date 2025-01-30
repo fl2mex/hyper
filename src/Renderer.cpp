@@ -169,7 +169,6 @@ namespace hyper
 		m_LinearSampler = m_Device->createSamplerUnique(samplerInfo);
 
 		// Meshes
-		testMeshes = LoadModel(m_CommandPool.get(), m_Device.get(), m_DeviceQueue, m_Allocator, "res/model/basicmesh.glb");
 
 		// Uniform Buffer
 		m_UniformBuffers.resize(m_Swapchain.ImageCount);
@@ -202,8 +201,6 @@ namespace hyper
 
 	void Renderer::DrawFrame()
 	{
-		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
-		
 		static float oldTimeStart = 0;
 		float timeSinceStart = static_cast<float>(glfwGetTime());
 		float deltaTime = timeSinceStart - oldTimeStart;
@@ -270,7 +267,7 @@ namespace hyper
 		//vk::Buffer vertexBuffers[] = { m_VertexBuffer.Buffer };
 		//vk::DeviceSize offsets[] = { 0 };
 		PushConstantData pushConstants{};
-		pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
+		//pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
 			// Synchronisation2 barriers
@@ -325,12 +322,12 @@ namespace hyper
 			m_CommandBuffers[i]->bindShadersEXT({ vk::ShaderStageFlagBits::eVertex, vk::ShaderStageFlagBits::eFragment }, { m_Shaders[0].get(), m_Shaders[1].get() }, m_DLDI);
 
 			//m_CommandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets); // Using push constants atm, probably not for long
-			m_CommandBuffers[i]->bindIndexBuffer(testMeshes[2]->indexBuffer.Buffer, 0, vk::IndexType::eUint32);
+			//m_CommandBuffers[i]->bindIndexBuffer(testMeshes[2]->indexBuffer.Buffer, 0, vk::IndexType::eUint32);
 
 			m_CommandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_PipelineLayout, 0, 1, &m_DescriptorSets[i].get(), 0, nullptr);
 			m_CommandBuffers[i]->pushConstants(*m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstantData), &pushConstants);
 
-			m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
+			//m_CommandBuffers[i]->drawIndexed(testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffers[i].get());
 
@@ -354,13 +351,14 @@ namespace hyper
 		vk::CommandBufferSubmitInfo commandBufferInfo{ m_CommandBuffers[imageIndex.value].get() };
 		vk::SemaphoreSubmitInfo signalSemaphoreInfo{ m_RenderFinishedSemaphore.get(), {}, vk::PipelineStageFlagBits2::eNone };
 		m_DeviceQueue.submit2({ vk::SubmitInfo2{ {}, 1, &waitSemaphoreInfo, 1, &commandBufferInfo, 1, &signalSemaphoreInfo } }, m_InFlightFence.get());
+		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.ActualSwapchain.get(), &imageIndex.value }));
 	}
 
 	Renderer::~Renderer()
 	{
-		m_Device->waitIdle();
+		m_Device->waitIdle(); // Can't figure out how to wait for semaphore completion before closing app, this is the band-aid fix
 
 		for (auto& ub : m_UniformBuffers)
 			DestroyBuffer(m_Allocator, ub); // Eventually want to figure out a way to fit these inside unique pointers so they also descope automatically :D
@@ -368,12 +366,6 @@ namespace hyper
 		DestroyImage(m_Allocator, m_Device.get(), m_DepthImage);
 		DestroyImage(m_Allocator, m_Device.get(), m_TextureImage);
 		DestroyImage(m_Allocator, m_Device.get(), m_ErrorCheckerboardImage);
-
-		for (std::shared_ptr<MeshAsset> meshAsset : testMeshes)
-		{
-			DestroyBuffer(m_Allocator, meshAsset->vertexBuffer);
-			DestroyBuffer(m_Allocator, meshAsset->indexBuffer);
-		}
 
 		vmaDestroyAllocator(m_Allocator);
 

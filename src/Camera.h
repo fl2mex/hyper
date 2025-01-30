@@ -30,7 +30,6 @@ namespace hyper
 		{
 			glm::quat pitchRotation = glm::angleAxis(pitch, glm::vec3{ 1.f, 0.f, 0.f });
 			glm::quat yawRotation = glm::angleAxis(yaw, glm::vec3{ 0.f, -1.f, 0.f });
-
 			return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 		}
 
@@ -43,26 +42,26 @@ namespace hyper
 		void ProcessInput(GLFWwindow* window, UserActions userActions, float cameraSpeed, float mouseSensitivity)
 		{
 			static glm::vec3 cameraZ = glm::vec3(0.0f, 0.0f, 1.0f);
-			static glm::vec3 cameraX = glm::vec3(1.0f, 0.0f, 0.0f);
+			static glm::vec3 worldRight = glm::inverse(GetRotationMatrix()) * glm::vec4(1, 0, 0, 0);
 			static glm::vec3 worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
 
-			ProcessKeyboardInput(userActions, cameraSpeed, cameraZ, cameraX, worldUp);
-			ProcessMouseInput(window, userActions, mouseSensitivity, cameraZ, cameraX, worldUp);
+			ProcessKeyboardInput(userActions, cameraSpeed, cameraZ, worldUp, worldRight);
+			ProcessMouseInput(window, userActions, mouseSensitivity);
 
-			cameraX = glm::normalize(glm::vec3{
-				cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+			cameraZ = glm::normalize(glm::vec3{
+				sin(-glm::radians(yaw)) * cos(glm::radians(pitch)),
 				sin(glm::radians(pitch)),
-				sin(glm::radians(yaw)) * cos(glm::radians(pitch)) });
-			cameraZ = glm::normalize(glm::cross(cameraX, glm::vec3(0.0f, 1.0f, 0.0f)));
+				cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+				});
 			worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
 		}
 
-		void ProcessKeyboardInput(UserActions userActions, float cameraSpeed, glm::vec3 cameraZ, glm::vec3 cameraX, glm::vec3 worldUp)
+		void ProcessKeyboardInput(UserActions userActions, float cameraSpeed, glm::vec3 cameraZ, glm::vec3 worldUp, glm::vec3 worldRight)
 		{
+			velocity = glm::vec3(0.0f);
 			if (ImGui::GetIO().WantCaptureKeyboard)
 				return;
 
-			velocity = glm::vec3(0.0f);
 			float speed = cameraSpeed;
 			if (userActions.Keys[GLFW_KEY_LEFT_CONTROL])
 				speed *= 2;
@@ -71,16 +70,16 @@ namespace hyper
 			if (userActions.Keys[GLFW_KEY_S])
 				velocity += cameraZ * speed;
 			if (userActions.Keys[GLFW_KEY_A])
-				velocity += cameraX * -speed;
+				velocity += worldRight * -speed;
 			if (userActions.Keys[GLFW_KEY_D])
-				velocity += cameraX * speed;
+				velocity += worldRight * speed;
 			if (userActions.Keys[GLFW_KEY_Q])
 				velocity += worldUp * speed;
 			if (userActions.Keys[GLFW_KEY_E])
 				velocity += worldUp * -speed;
 		}
 
-		void ProcessMouseInput(GLFWwindow* window, UserActions userActions, float mouseSensitivity, glm::vec3 cameraZ, glm::vec3 cameraX, glm::vec3 worldUp)
+		void ProcessMouseInput(GLFWwindow* window, UserActions userActions, float mouseSensitivity)
 		{
 			if (ImGui::GetIO().WantCaptureMouse)
 				return;

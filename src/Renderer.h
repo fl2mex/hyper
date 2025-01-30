@@ -46,7 +46,7 @@ namespace hyper
 		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 		
 		Spec m_Spec;
-		GLFWwindow* m_Window;
+		GLFWwindow* m_Window{};
 		Camera m_Camera;
 
 		vk::UniqueInstance m_Instance;
@@ -59,9 +59,9 @@ namespace hyper
 		vk::PhysicalDevice m_PhysicalDevice;
 		vk::UniqueDevice m_Device;
 		
-		VmaAllocator m_Allocator;
+		VmaAllocator m_Allocator{};
 
-		uint32_t m_GraphicsIndex, m_PresentIndex;
+		uint32_t m_GraphicsIndex = -1, m_PresentIndex = -1;
 		vk::Queue m_DeviceQueue, m_PresentQueue;
 
 		Swapchain m_Swapchain;

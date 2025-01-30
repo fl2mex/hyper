@@ -87,7 +87,7 @@ namespace hyper
 			static glm::vec2 lastMousePos;
 			float xOffset = userActions.MousePos[0] - lastMousePos.x;
 			float yOffset = lastMousePos.y - userActions.MousePos[1];
-			lastMousePos = glm::vec2(userActions.MousePos[0], userActions.MousePos[1]);
+			lastMousePos = glm::vec2(static_cast<float>(userActions.MousePos[0]), static_cast<float>(userActions.MousePos[1]));
 			if (userActions.MouseButtons[GLFW_MOUSE_BUTTON_LEFT])
 			{
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

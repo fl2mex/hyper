@@ -10,8 +10,8 @@ namespace hyper
 		vk::UniqueSwapchainKHR ActualSwapchain;
 		std::vector<vk::Image> Images;
 		std::vector<vk::UniqueImageView> ImageViews;
-		uint32_t ImageCount;
-		vk::Format ImageFormat;
+		uint32_t ImageCount = 0;
+		vk::Format ImageFormat = { vk::Format::eUndefined };
 		vk::Extent2D Extent;
 		bool Resized = false;
 

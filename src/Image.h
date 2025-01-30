@@ -11,7 +11,7 @@ namespace hyper
 		VmaAllocation Allocation = 0;
 		VmaAllocationInfo AllocationInfo = { 0 };
 		vk::Extent2D Extent;
-		vk::Format Format;
+		vk::Format Format = { vk::Format::eUndefined };
 	};
 
 	Image CreateImage(VmaAllocator& allocator, vk::Device& device, vk::Extent2D extent, vk::Format format, vk::ImageTiling tiling,
@@ -22,4 +22,5 @@ namespace hyper
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
 	void CopyImage(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, vk::Buffer& buffer, vk::Extent2D extent, vk::Image& dst);
 	void DestroyImage(VmaAllocator& allocator, vk::Device& device, Image& image);
+
 }

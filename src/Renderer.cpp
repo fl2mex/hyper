@@ -205,7 +205,7 @@ namespace hyper
 		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 		
 		static float oldTimeStart = 0;
-		float timeSinceStart = glfwGetTime();
+		float timeSinceStart = static_cast<float>(glfwGetTime());
 		float deltaTime = timeSinceStart - oldTimeStart;
 		oldTimeStart = timeSinceStart;
 
@@ -234,7 +234,7 @@ namespace hyper
 		static std::vector<vk::ClearValue> clearValues{ vk::ClearColorValue{ 1.0f, 0.5f, 0.3f, 1.0f }, vk::ClearColorValue{ 1.0f, 0.0f, 0.0f, 0.0f } };
 		static bool nearestSampler = true;
 		{ // Custom window
-			ImGui::Begin("Clear Colour");
+			ImGui::Begin("Stuff to mess with!");
 			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this??? vulkan explain????
 			ImGui::SliderFloat3("Camera Position", (float*)&m_Camera.position, -10.0f, 10.0f);
 			ImGui::SliderFloat("Camera Pitch", &m_Camera.pitch, -glm::half_pi<float>(), glm::half_pi<float>());
@@ -246,7 +246,7 @@ namespace hyper
 		}
 		ImGui::Render();
 
-		for (size_t i = 0; i < m_Swapchain.ImageCount; i++)
+		for (uint32_t i = 0; i < m_Swapchain.ImageCount; i++)
 		{
 			vk::DescriptorBufferInfo bufferInfo{ m_UniformBuffers[i].Buffer, 0, sizeof(UniformBufferObject) };
 			vk::DescriptorImageInfo imageInfo{ nearestSampler ? m_NearestSampler.get() : m_LinearSampler.get(),
@@ -283,13 +283,12 @@ namespace hyper
 				vk::ImageLayout::eAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, m_Swapchain.Images[i],
 				vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
-
-			const std::vector<vk::RenderingAttachmentInfo> attachments{ { m_Swapchain.ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimal, {},{},{}, // Colour
+			std::vector<vk::RenderingAttachmentInfo> attachments{ { m_Swapchain.ImageViews[i].get(), vk::ImageLayout::eAttachmentOptimal, {},{},{}, // Colour
 				vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, clearValues[0] } };
-			const vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView, vk::ImageLayout::eAttachmentOptimal, {}, {}, {}, // Depth
+			vk::RenderingAttachmentInfo depthAttachment{ m_DepthImage.ImageView, vk::ImageLayout::eAttachmentOptimal, {}, {}, {}, // Depth
 					vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eDontCare, clearValues[1] };
 
-			const vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_Swapchain.Extent }, 1, {}, attachments, &depthAttachment };
+			vk::RenderingInfo renderingInfo{ {}, vk::Rect2D{ { 0, 0 }, m_Swapchain.Extent }, 1, {}, attachments, &depthAttachment };
 
 			// Actual command buffers
 			m_CommandBuffers[i]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });

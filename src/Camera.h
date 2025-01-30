@@ -85,8 +85,8 @@ namespace hyper
 				return;							 // and also vice versa with using the window and not moving the camera's pitch/yaw
 
 			static glm::vec2 lastMousePos;
-			float xOffset = userActions.MousePos[0] - lastMousePos.x;
-			float yOffset = lastMousePos.y - userActions.MousePos[1];
+			float xOffset = static_cast<float>(userActions.MousePos[0]) - lastMousePos.x;
+			float yOffset = lastMousePos.y - static_cast<float>(userActions.MousePos[1]);
 			lastMousePos = glm::vec2(static_cast<float>(userActions.MousePos[0]), static_cast<float>(userActions.MousePos[1]));
 			if (userActions.MouseButtons[GLFW_MOUSE_BUTTON_LEFT])
 			{

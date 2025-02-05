@@ -7,7 +7,7 @@ namespace hyper
 {
 	enum Severity
 	{
-		Setup = 4,
+		Setup = 4, // Enums start at the first value :D idk why I don't just set this to -1
 		Verbose = 0,
 		Info = 1,
 		Warning = 2,
@@ -17,7 +17,7 @@ namespace hyper
 	class Logger
 	{
 	public:
-		static Logger* logger;
+		static Logger* logger; // This lets it sit globally without having to get the logger in each scope
 		Logger() { logger = this; }
 
 		std::string getCurrentTimestamp() const;
@@ -28,6 +28,7 @@ namespace hyper
 
 		void Log(std::string message, Severity severity = Severity::Setup) const;
 
+		// Probably doesn't need to be /here/
 		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> MakeDebugMessenger(vk::UniqueInstance& instance,
 			vk::detail::DispatchLoaderDynamic& dldi);
 	private:

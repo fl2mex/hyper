@@ -202,8 +202,6 @@ namespace hyper
 
 	void Renderer::DrawFrame()
 	{
-		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
-		
 		static float oldTimeStart = 0;
 		float timeSinceStart = static_cast<float>(glfwGetTime());
 		float deltaTime = timeSinceStart - oldTimeStart;
@@ -354,13 +352,14 @@ namespace hyper
 		vk::CommandBufferSubmitInfo commandBufferInfo{ m_CommandBuffers[imageIndex.value].get() };
 		vk::SemaphoreSubmitInfo signalSemaphoreInfo{ m_RenderFinishedSemaphore.get(), {}, vk::PipelineStageFlagBits2::eNone };
 		m_DeviceQueue.submit2({ vk::SubmitInfo2{ {}, 1, &waitSemaphoreInfo, 1, &commandBufferInfo, 1, &signalSemaphoreInfo } }, m_InFlightFence.get());
+		static_cast<void>(m_Device->waitForFences(1, &m_InFlightFence.get(), VK_TRUE, UINT64_MAX));
 
 		static_cast<void>(m_PresentQueue.presentKHR({ 1, &m_RenderFinishedSemaphore.get(), 1, &m_Swapchain.ActualSwapchain.get(), &imageIndex.value }));
 	}
 
 	Renderer::~Renderer()
 	{
-		m_Device->waitIdle();
+		m_Device->waitIdle(); // Can't figure out how to wait for semaphore completion before closing app, this is the band-aid fix
 
 		for (auto& ub : m_UniformBuffers)
 			DestroyBuffer(m_Allocator, ub); // Eventually want to figure out a way to fit these inside unique pointers so they also descope automatically :D

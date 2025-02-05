@@ -1,13 +1,13 @@
 #pragma once
 #include <iostream>
 #include <filesystem>
-#include <vulkan/vulkan.hpp>	// >1.3.275 and I didn't originally notice because I was ON 1.3.275
-#include <GLFW/glfw3.h>			// and only then noticed when I had to reinstall the SDK :)))))
-#include <vma/vk_mem_alloc.h>
+#include <vulkan/vulkan.hpp> // Came with sdk
+#include <GLFW/glfw3.h> // Downloaded from their website
+#include <vma/vk_mem_alloc.h> // Came with sdk, if not, either re-install with this option on or download from respective site
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp> // This came with the vulkan sdk but if you don't have it, just download it from github
+#include <glm/glm.hpp> // Came with sdk, if not, either re-install with this option on or download from respective site
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 
@@ -74,7 +74,7 @@ namespace hyper
 
 		vk::UniqueDescriptorPool m_DescriptorPool;
 
-		// Should be handled by the render object
+		// Should be handled by the render object soon
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;
 		vk::UniquePipelineLayout m_PipelineLayout;
 		vk::UniqueDescriptorSetLayout m_DescriptorSetLayout;

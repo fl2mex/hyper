@@ -60,6 +60,8 @@ namespace hyper
 
 	void CopyImage(vk::CommandPool& commandPool, vk::Device& device, vk::Queue& deviceQueue, vk::Buffer& buffer, vk::Extent2D extent, vk::Image& dst)
 	{
+		vk::UniqueFence fence = device.createFenceUnique({ vk::FenceCreateFlagBits::eSignaled });
+
 		vk::CommandBufferAllocateInfo allocInfo{ commandPool, vk::CommandBufferLevel::ePrimary, 1 };
 		std::vector<vk::UniqueCommandBuffer> commandBuffer = device.allocateCommandBuffersUnique(allocInfo);
 		vk::BufferImageCopy copyRegion{ 0, 0, 0, {vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, { 0, 0, 0 },
@@ -74,14 +76,17 @@ namespace hyper
 			vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, dst,
 			vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
 
+		static_cast<void>(device.resetFences(1, &fence.get()));
+
 		commandBuffer[0]->begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &topImageMemoryBarrier2 });
 		commandBuffer[0]->copyBufferToImage(buffer, dst, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
 		commandBuffer[0]->pipelineBarrier2({ vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &bottomImageMemoryBarrier2 });
 		commandBuffer[0]->end();
-		vk::SubmitInfo submitInfo{ 0, nullptr, nullptr, 1, &commandBuffer[0].get() };
-		deviceQueue.submit(submitInfo, nullptr);
-		deviceQueue.waitIdle();
+
+		vk::CommandBufferSubmitInfo commandBufferSubmitInfo{ commandBuffer[0].get() };
+		deviceQueue.submit2(vk::SubmitInfo2{ {}, 0, nullptr, 1, &commandBufferSubmitInfo, 0, nullptr }, fence.get());
+		static_cast<void>(device.waitForFences(1, &fence.get(), VK_TRUE, UINT64_MAX));
 	}
 
 	void DestroyImage(VmaAllocator& allocator, vk::Device& device, Image& image)

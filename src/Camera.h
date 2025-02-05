@@ -41,9 +41,9 @@ namespace hyper
 
 		void ProcessInput(GLFWwindow* window, UserActions userActions, float cameraSpeed, float mouseSensitivity)
 		{
-			static glm::vec3 cameraZ = glm::vec3(0.0f, 0.0f, 1.0f);
-			static glm::vec3 worldRight = glm::inverse(GetRotationMatrix()) * glm::vec4(1, 0, 0, 0);
-			static glm::vec3 worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
+			static glm::vec3 cameraZ = glm::vec3(0.0f, 0.0f, 1.0f);									 // Crossing what used to be cameraX would move the
+			static glm::vec3 worldRight = glm::inverse(GetRotationMatrix()) * glm::vec4(1, 0, 0, 0); // camera in the y direction which I don't want, so
+			static glm::vec3 worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);	 // we only do it moving via forwards/backwards or Q/E
 
 			ProcessKeyboardInput(userActions, cameraSpeed, cameraZ, worldUp, worldRight);
 			ProcessMouseInput(window, userActions, mouseSensitivity);
@@ -63,7 +63,7 @@ namespace hyper
 				return;
 
 			float speed = cameraSpeed;
-			if (userActions.Keys[GLFW_KEY_LEFT_CONTROL])
+			if (userActions.Keys[GLFW_KEY_LEFT_CONTROL]) // Can't switch statement it to look nice :(
 				speed *= 2;
 			if (userActions.Keys[GLFW_KEY_W])
 				velocity += cameraZ * -speed;
@@ -81,21 +81,19 @@ namespace hyper
 
 		void ProcessMouseInput(GLFWwindow* window, UserActions userActions, float mouseSensitivity)
 		{
-			if (ImGui::GetIO().WantCaptureMouse)
-				return;
+			if (ImGui::GetIO().WantCaptureMouse) // Seperate so you can hover over window while still maintaining movement control
+				return;							 // and also vice versa with using the window and not moving the camera's pitch/yaw
 
 			static glm::vec2 lastMousePos;
-			float xOffset = userActions.MousePos[0] - lastMousePos.x;
-			float yOffset = lastMousePos.y - userActions.MousePos[1];
 			lastMousePos = glm::vec2(static_cast<float>(userActions.MousePos[0]), static_cast<float>(userActions.MousePos[1]));
 			if (userActions.MouseButtons[GLFW_MOUSE_BUTTON_LEFT])
 			{
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-				yaw += xOffset * mouseSensitivity;
-				pitch += yOffset * mouseSensitivity;
+				yaw += (static_cast<float>(userActions.MousePos[0]) - lastMousePos.x) * mouseSensitivity;
+				pitch += (lastMousePos.y - static_cast<float>(userActions.MousePos[1])) * mouseSensitivity;
 				pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
 			}
-			else
+			else // ugly code <3
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		}
 

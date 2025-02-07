@@ -85,12 +85,14 @@ namespace hyper
 				return;							 // and also vice versa with using the window and not moving the camera's pitch/yaw
 
 			static glm::vec2 lastMousePos;
+			float xOffset = userActions.MousePos[0] - lastMousePos.x;
+			float yOffset = lastMousePos.y - userActions.MousePos[1];
 			lastMousePos = glm::vec2(static_cast<float>(userActions.MousePos[0]), static_cast<float>(userActions.MousePos[1]));
 			if (userActions.MouseButtons[GLFW_MOUSE_BUTTON_LEFT])
 			{
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-				yaw += (static_cast<float>(userActions.MousePos[0]) - lastMousePos.x) * mouseSensitivity;
-				pitch += (lastMousePos.y - static_cast<float>(userActions.MousePos[1])) * mouseSensitivity;
+				yaw += xOffset * mouseSensitivity;
+				pitch += yOffset * mouseSensitivity;
 				pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
 			}
 			else // ugly code <3

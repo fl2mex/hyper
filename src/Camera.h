@@ -8,6 +8,7 @@
 #include <imgui.h>
 
 #include "UserActions.h"
+#include "Logger.h"
 
 namespace hyper
 {
@@ -50,8 +51,8 @@ namespace hyper
 
 			cameraZ = glm::normalize(glm::vec3{
 				sin(-glm::radians(yaw)) * cos(glm::radians(pitch)),
-				sin(glm::radians(pitch)),
-				cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+				sin( glm::radians(pitch)),
+				cos( glm::radians(yaw)) * cos(glm::radians(pitch)),
 				});
 			worldUp = glm::inverse(GetRotationMatrix()) * glm::vec4(0, 1, 0, 0);
 		}
@@ -63,20 +64,64 @@ namespace hyper
 				return;
 
 			float speed = cameraSpeed;
-			if (userActions.Keys[GLFW_KEY_LEFT_CONTROL]) // Can't switch statement it to look nice :(
-				speed *= 2;
-			if (userActions.Keys[GLFW_KEY_W])
-				velocity += cameraZ * -speed;
-			if (userActions.Keys[GLFW_KEY_S])
-				velocity += cameraZ * speed;
-			if (userActions.Keys[GLFW_KEY_A])
-				velocity += worldRight * -speed;
-			if (userActions.Keys[GLFW_KEY_D])
-				velocity += worldRight * speed;
-			if (userActions.Keys[GLFW_KEY_Q])
-				velocity += worldUp * speed;
-			if (userActions.Keys[GLFW_KEY_E])
-				velocity += worldUp * -speed;
+			//if (userActions.Keys[GLFW_KEY_LEFT_CONTROL]) // Can't switch statement it to look nice :(
+			//	speed *= 2;
+			//if (userActions.Keys[GLFW_KEY_W])
+			//	velocity += cameraZ * -speed;
+			//if (userActions.Keys[GLFW_KEY_S])
+			//	velocity += cameraZ * speed;
+			//if (userActions.Keys[GLFW_KEY_A])
+			//	velocity += worldRight * -speed;
+			//if (userActions.Keys[GLFW_KEY_D])
+			//	velocity += worldRight * speed;
+			//if (userActions.Keys[GLFW_KEY_Q])
+			//	velocity += worldUp * speed;
+			//if (userActions.Keys[GLFW_KEY_E])
+			//	velocity += worldUp * -speed;
+			//if ((userActions.Keys[GLFW_KEY_SPACE] & KeyHeld) == 0)
+			//{
+			//	if (userActions.Keys[GLFW_KEY_SPACE] & KeyDown)
+			//	{
+			//		userActions.Keys[GLFW_KEY_SPACE] | KeyHeld;
+			//		std::cout << "IT HAPPENEDDDD: " << wtfCounter << std::endl;
+			//		wtfCounter++;
+			//	}
+			//}
+			//else
+			//	userActions.Keys[GLFW_KEY_SPACE] ^ KeyHeld;
+
+			// working but want to change
+			//
+			// static bool held = false;
+			// 
+			//if (!held)
+			//{
+			//	if (userActions.Keys[GLFW_KEY_SPACE].KeyState) // Check if Space is pressed
+			//	{
+			//		Logger::logger->Log("KeyDown");
+			//		held = true;
+			//	}
+			//}
+			//else if (!userActions.Keys[GLFW_KEY_SPACE].KeyState) // Check if Space is not pressed IF KeyHeld is true
+			//{
+			//	Logger::logger->Log("KeyUp");
+			//	held = false;
+			//}
+
+			// not working
+			if (!userActions.Keys[GLFW_KEY_SPACE].KeyHeld)
+			{
+				if (userActions.Keys[GLFW_KEY_SPACE].KeyState)
+				{
+					Logger::logger->Log("KeyDown");
+					userActions.Keys[GLFW_KEY_SPACE].KeyHeld = true;
+				}
+			}
+			else if (!userActions.Keys[GLFW_KEY_SPACE].KeyState)
+			{
+				Logger::logger->Log("KeyUp");
+				userActions.Keys[GLFW_KEY_SPACE].KeyHeld = false;
+			}
 		}
 
 		void ProcessMouseInput(GLFWwindow* window, UserActions userActions, float mouseSensitivity)
@@ -98,6 +143,5 @@ namespace hyper
 			else // ugly code <3
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		}
-
 	};
 }

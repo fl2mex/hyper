@@ -43,17 +43,13 @@ namespace hyper
 		UserActions m_UserActions;
 
 	private:
-		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
-		
 		Spec m_Spec;
-		GLFWwindow* m_Window{};
-		Camera m_Camera;
 
+		GLFWwindow* m_Window{};
 		vk::UniqueInstance m_Instance;
 
 		vk::detail::DispatchLoaderDynamic m_DLDI;
 		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_DebugMessenger;
-
 		vk::UniqueSurfaceKHR m_Surface;
 
 		vk::PhysicalDevice m_PhysicalDevice;
@@ -73,6 +69,10 @@ namespace hyper
 		vk::UniqueSemaphore m_ImageAvailableSemaphore, m_RenderFinishedSemaphore;
 
 		vk::UniqueDescriptorPool m_DescriptorPool;
+
+		Camera m_Camera;
+
+		std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 		// Should be handled by the render object soon
 		std::vector<vk::UniqueHandle<vk::ShaderEXT, vk::detail::DispatchLoaderDynamic>> m_Shaders;

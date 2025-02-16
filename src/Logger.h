@@ -31,6 +31,7 @@ namespace hyper
 		// Probably doesn't need to be /here/
 		vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> MakeDebugMessenger(vk::UniqueInstance& instance,
 			vk::detail::DispatchLoaderDynamic& dldi);
+
 	private:
 		bool m_Debug = false;
 		bool m_InfoDebug = false;

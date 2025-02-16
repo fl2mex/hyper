@@ -7,9 +7,9 @@ namespace hyper
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
 		if (action == GLFW_PRESS) // Make it so holding down a key doesnt rely on the repeat rate
-			userActions.Keys[key] = true; // Meaning it shouldnt press once, then wait, then finally hold
+			userActions.Keys[key].KeyState = true; // Meaning it shouldnt press once, then wait, then finally hold
 		if (action == GLFW_RELEASE)
-			userActions.Keys[key] = false;
+			userActions.Keys[key].KeyState = false;
 	}
 
 	static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -61,7 +61,7 @@ namespace hyper
 				previousTime = currentTime;
 			}
 
-			if (userActions.Keys[GLFW_KEY_ESCAPE])
+			if (userActions.Keys[GLFW_KEY_ESCAPE].KeyState)
 				glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
 			m_Renderer.m_UserActions = userActions;
 			m_Renderer.DrawFrame(); // Can add more things later, like audio :)

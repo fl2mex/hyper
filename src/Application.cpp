@@ -1,8 +1,6 @@
 #include "Application.h"
 
-#include "UserActions.h"
-
-extern hyper::UserActions userActions;
+hyper::UserActions userActions{};
 
 namespace hyper
 {

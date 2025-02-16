@@ -12,8 +12,6 @@
 #include "Logger.h"
 #include "File.h"
 
-hyper::UserActions userActions{};
-
 namespace hyper
 {
 	void Renderer::SetupRenderer(Spec _spec, GLFWwindow* _window)
@@ -212,7 +210,7 @@ namespace hyper
 		static float cameraSpeed = 5.0f;
 		static float cameraSensitivity = 1 / 500.0f;
 		m_Camera.Update(deltaTime);
-		m_Camera.ProcessInput(m_Window, userActions, cameraSpeed, cameraSensitivity);
+		m_Camera.ProcessInput(m_Window, cameraSpeed, cameraSensitivity);
 
 		if (m_Swapchain.Resized)
 		{

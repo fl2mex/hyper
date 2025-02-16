@@ -4,6 +4,7 @@
 #include "Spec.h"
 #include "Renderer.h"
 #include "Logger.h"
+#include "UserActions.h"
 
 namespace hyper
 {

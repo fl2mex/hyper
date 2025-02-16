@@ -8,10 +8,10 @@ namespace hyper
 		bool KeyHeld : 1;
 	};
 
-	static struct UserActions // Having an extra header is dumb but I need it in two places
+	struct UserActions // Having an extra header is dumb but I need it in two places
 	{
 		KeyH Keys[348]{ 0, 0 }; // I need to figure out how to get all of this as pointers
 		bool MouseButtons[8]{ false }; // so i'm not passing around ~0.4 KILOBYTES every time
 		double MousePos[2]{ 0.0 };	   // I move the mouse/press keys
-	} userActions; // Should declare this somewhere else more visible
+	}; // Should declare this somewhere else more visible
 }

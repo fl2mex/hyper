@@ -40,7 +40,6 @@ namespace hyper
 		~Renderer();
 
 		void SetFramebufferResized() { m_Swapchain.Resized = true; }
-		UserActions m_UserActions;
 
 	private:
 		Spec m_Spec;

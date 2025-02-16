@@ -2,6 +2,8 @@
 
 #include "UserActions.h"
 
+extern hyper::UserActions userActions;
+
 namespace hyper
 {
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -63,7 +65,6 @@ namespace hyper
 
 			if (userActions.Keys[GLFW_KEY_ESCAPE].KeyState)
 				glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
-			m_Renderer.m_UserActions = userActions;
 			m_Renderer.DrawFrame(); // Can add more things later, like audio :)
 		}
 	}

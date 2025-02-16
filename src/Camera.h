@@ -92,7 +92,7 @@ namespace hyper
 
 			// working but want to change
 			//
-			// static bool held = false;
+			//static bool held = false;
 			// 
 			//if (!held)
 			//{

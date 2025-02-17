@@ -226,11 +226,11 @@ namespace hyper
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		{ // Demo window
-			ImGui::ShowDemoWindow();
-		}
 		static std::vector<vk::ClearValue> clearValues{ vk::ClearColorValue{ 1.0f, 0.5f, 0.3f, 1.0f }, vk::ClearColorValue{ 1.0f, 0.0f, 0.0f, 0.0f } };
 		static bool nearestSampler = true;
+		static bool shouldSnap = false;
+		static float snapFactor = 100.0f;
+		static float spinSpeed = 1.f;
 		{ // Custom window
 			ImGui::Begin("Stuff to mess with!");
 			ImGui::ColorEdit4("Clear Colour", clearValues[0].color.float32.data()); // wtf is this??? vulkan explain????
@@ -240,6 +240,9 @@ namespace hyper
 			ImGui::SliderFloat("Camera Speed", &cameraSpeed, -1.0f, 10.0f);
 			ImGui::SliderFloat("Camera Sensitivity", &cameraSensitivity, 1/1000.0f, 1/20.0f);
 			ImGui::Checkbox("Nearest Sampler", &nearestSampler);
+			ImGui::Checkbox("Snap Vertices", &shouldSnap);
+			ImGui::SliderFloat("Snap Factor", &snapFactor, 100.0f, 1.0f);
+			ImGui::SliderFloat("Spin Speed", &spinSpeed, 0.01f, 2.0f);
 			ImGui::End();
 		}
 		ImGui::Render();
@@ -258,7 +261,7 @@ namespace hyper
 		// Update UBO
 		static uint32_t currentFrame = 0;
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(glfwGetTime()) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::rotate(glm::mat4(1.0f), static_cast<float>(glfwGetTime()) * glm::radians(90.0f) * spinSpeed, glm::vec3(1.0f, 1.0f, 1.0f));
 		ubo.view = m_Camera.GetViewMatrix();
 		ubo.proj = glm::perspective(glm::radians(70.0f), m_Swapchain.Extent.width / (float)m_Swapchain.Extent.height, 0.1f, 1000.0f);
 		ubo.proj[1][1] *= -1;
@@ -269,6 +272,8 @@ namespace hyper
 		//vk::DeviceSize offsets[] = { 0 };
 		PushConstantData pushConstants{};
 		pushConstants.vertexBuffer = m_Device->getBufferAddress({ testMeshes[2]->vertexBuffer.Buffer });
+		pushConstants.shouldSnap = shouldSnap;
+		pushConstants.snapFactor = snapFactor;
 		for (size_t i = 0; i < m_CommandBuffers.size(); i++)
 		{
 			// Synchronisation2 barriers

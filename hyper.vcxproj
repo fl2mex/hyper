@@ -21,12 +21,12 @@
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
-    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\Swapchain.cpp" />
+    <ClCompile Include="src\UserActions.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui_demo.cpp" />
     <ClCompile Include="vendor\imgui\include\imgui_draw.cpp" />

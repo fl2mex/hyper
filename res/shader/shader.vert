@@ -20,6 +20,8 @@ layout(binding = 0) uniform UniformBufferObject {
 
 layout(push_constant) uniform PushConstants {
 	VertexBuffer vertexBuffer;
+	bool shouldSnap;
+	float snapFactor;
 } pc;
 
 layout(location = 0) in vec3 inPosition;
@@ -31,8 +33,11 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
 	Vertex v = pc.vertexBuffer.vertices[gl_VertexIndex];
+	
+	gl_Position = pc.shouldSnap
+		? ubo.proj * ubo.view * round(ubo.model * vec4(v.position, 1.0)*pc.snapFactor)/pc.snapFactor
+		: ubo.proj * ubo.view * ubo.model * vec4(v.position, 1.0);
 
-	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(v.position, 1.0);
 	fragColor = v.color.rgb;
 	fragTexCoord = v.uv;
 }

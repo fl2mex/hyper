@@ -57,7 +57,7 @@
     <ClCompile Include="src\Swapchain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
+    <ClCompile Include="src\UserActions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

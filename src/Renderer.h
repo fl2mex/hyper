@@ -30,6 +30,8 @@ namespace hyper
 	struct PushConstantData
 	{
 		vk::DeviceAddress vertexBuffer;
+		bool shouldSnap;
+		float snapFactor;
 	};
 
 	class Renderer

@@ -1,7 +1,5 @@
 #include "Application.h"
 
-hyper::UserActions userActions{};
-
 namespace hyper
 {
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
